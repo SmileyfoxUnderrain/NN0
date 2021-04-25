@@ -68,9 +68,11 @@ namespace NN0
         {
             var outputValue = neuron.OutputValue;
             var error = outputValue - awaitedValue;
+            
             // sigma * omega * f * (1 - f)
             var localGradient = error * outputValue * (1 - outputValue);
-            foreach(var d in neuron.Dendrites)
+            //Console.WriteLine($"LastLayer error = {error}, local gradient = {localGradient}");
+            foreach (var d in neuron.Dendrites)
             {
                 var previousLayerNeuron = d.GetOtherNeuron(neuron);
                 var previousOutputValue = previousLayerNeuron.OutputValue;

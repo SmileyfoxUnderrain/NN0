@@ -163,10 +163,9 @@ namespace NN0
             var weightedSum = _outputSynapsesGradients.Sum(c => c.Value * c.Key.Weight);
             // 2. Calculate local gradient 
             // weightedSum(sigma * omega) * f * (1 - f)
-            // TODO make derivative of the activation function changeable and relevant to 
-            // the activation function
-            var localGradient = weightedSum * this.OutputValue * (1 - this.OutputValue);
+            var localGradient = weightedSum * ActivationFunctionDerivative(OutputValue);
             // 3. Run backPropagations to all other input connections
+            //Console.WriteLine($"MidLayer weightedSum = {weightedSum}, local gradient = {localGradient}");
             this.Dendrites.ToList().ForEach(c =>
             {
                 var previousLayerNeuron = c.GetOtherNeuron(this);
@@ -195,6 +194,11 @@ namespace NN0
         private double ActivationFunction(double x)
         {
             var ret = 1 / (1 + Math.Pow(Math.E, x * (-1)));
+            return ret;
+        }
+        private double ActivationFunctionDerivative(double x)
+        {
+            var ret = x * (1 - x);
             return ret;
         }
     }

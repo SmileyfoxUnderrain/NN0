@@ -27,31 +27,30 @@ namespace NN0
         {
             Console.WriteLine("Hello World!");
             var nn = NeuralNetworkFactory.CreateByLayerSizes(new[] { 7, 1 });
+            var epoch = new Epoch();
+            epoch.Samples.AddRange(new[] {
+                new Sample(new double[] { 1, 1, 0, 1, 1, 1, 1 }, new double[] { 0 }), //0
+                new Sample(new double[] { 0, 0, 0, 1, 0, 0, 1 }, new double[] { 1 }), //1
+                new Sample(new double[] { 1, 0, 1, 1, 1, 1, 0 }, new double[] { 0 }), //2
+                new Sample(new double[] { 1, 0, 1, 1, 0, 1, 1 }, new double[] { 1 }), //3
+                new Sample(new double[] { 0, 1, 1, 1, 0, 0, 1 }, new double[] { 0 }), //4
+                new Sample(new double[] { 1, 1, 1, 0, 0, 1, 1 }, new double[] { 1 }), //5
+                new Sample(new double[] { 1, 1, 1, 0, 1, 1, 1 }, new double[] { 0 }), //6
+                new Sample(new double[] { 1, 0, 0, 1, 0, 0, 1 }, new double[] { 1 }), //7
+                new Sample(new double[] { 1, 1, 1, 1, 1, 1, 1 }, new double[] { 0 }), //8
+                new Sample(new double[] { 1, 1, 1, 1, 0, 1, 1 }, new double[] { 1 })  //9
+            });
+            
             
             for (var i = 0; i < 300; i++)
             {
                 Console.WriteLine($"current lesson is {i}");
-
-                //0 is even
-                nn.Learn(new double[] { 1, 1, 0, 1, 1, 1, 1 }, new double[] { 0 });
-                //1 is odd
-                nn.Learn(new double[] { 0, 0, 0, 1, 0, 0, 1 }, new double[] { 1 });
-                // 2 is even
-                nn.Learn(new double[] { 1, 0, 1, 1, 1, 1, 0 }, new double[] { 0});
-                //// 3 is odd
-                nn.Learn(new double[] { 1, 0, 1, 1, 0, 1, 1 }, new double[] { 1 });
-                //// 4 is even
-                nn.Learn(new double[] { 0, 1, 1, 1, 0, 0, 1 }, new double[] { 0 });
-                //// 5 is odd
-                nn.Learn(new double[] { 1, 1, 1, 0, 0, 1, 1 }, new double[] { 1 });
-                //// 6 is even
-                nn.Learn(new double[] { 1, 1, 1, 0, 1, 1, 1 }, new double[] { 0 });
-                //// 7 is odd
-                nn.Learn(new double[] { 1, 0, 0, 1, 0, 0, 1 }, new double[] { 1 });
-                //// 8 is even
-                nn.Learn(new double[] { 1, 1, 1, 1, 1, 1, 1 }, new double[] { 0 });
-                //// 9 is odd
-                nn.Learn(new double[] { 1, 1, 1, 1, 0, 1, 1 }, new double[] { 1 });
+                while(epoch.HasNextRandomSample)
+                {
+                    var sample = epoch.GetNextRandomSample();
+                    nn.Learn(sample.InputVector, sample.AwaitedResponse);
+                }
+                epoch.ResetRandomizer();
             }
             // Control Check
             var result0 = nn.Calculate(new double[] { 1, 1, 0, 1, 1, 1, 1 });
