@@ -31,6 +31,7 @@ namespace NN0
         public void ResetRandomizer()
         {
             _givenSamples.Clear();
+            _rnd = new Random(DateTime.Now.Ticks.GetHashCode());
         }
         public Sample GetNextRandomSample()
         {

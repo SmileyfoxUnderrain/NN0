@@ -129,10 +129,12 @@ namespace NN0
         // Assume that the weights are all equals the same value to be changed during learning
         private static void SubscribeOneLayerToAnother(IEnumerable<Neuron> currentLayer, IEnumerable<Neuron> previousLayer)
         {
+            var rnd = new Random(DateTime.Now.Ticks.GetHashCode());
             foreach (var currentNeuron in currentLayer)
                 foreach (var prevNeuron in previousLayer)
                 {
-                    var connection = new Synapse(prevNeuron, currentNeuron, DEFAULT_WEIGHT);
+                    var randomWeight = DEFAULT_WEIGHT * rnd.NextDouble();
+                    var connection = new Synapse(prevNeuron, currentNeuron, randomWeight);
                     prevNeuron.Synapses.Add(connection);
                     currentNeuron.Synapses.Add(connection);
                     prevNeuron.Signal += currentNeuron.OnIncomingSignal;

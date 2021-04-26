@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -17,32 +18,48 @@ namespace NN0
     /// So, we need 10 neurons on the output layer
     /// We will also add one hidden layer with quantity of 8 neurons on it
     /// 
-    /// For the first task, our nn will try to learn to guess if the digit indicated 
-    /// is even or odd, so we need 7-4-1 network. To guess that indicated "7" is an odd number,
-    /// we will send an 1-0-0-1-0-0-1 signal and will await for 1 on the end
     /// </summary>
     class Program
     {
         static void Main(string[] args)
         {
             Console.WriteLine("Hello World!");
-            var nn = NeuralNetworkFactory.CreateByLayerSizes(new[] { 7, 1 });
+            var nn = NeuralNetworkFactory.CreateByLayerSizes(new[] { 7, 9, 10 });
             var epoch = new Epoch();
             epoch.Samples.AddRange(new[] {
-                new Sample(new double[] { 1, 1, 0, 1, 1, 1, 1 }, new double[] { 0 }), //0
-                new Sample(new double[] { 0, 0, 0, 1, 0, 0, 1 }, new double[] { 1 }), //1
-                new Sample(new double[] { 1, 0, 1, 1, 1, 1, 0 }, new double[] { 0 }), //2
-                new Sample(new double[] { 1, 0, 1, 1, 0, 1, 1 }, new double[] { 1 }), //3
-                new Sample(new double[] { 0, 1, 1, 1, 0, 0, 1 }, new double[] { 0 }), //4
-                new Sample(new double[] { 1, 1, 1, 0, 0, 1, 1 }, new double[] { 1 }), //5
-                new Sample(new double[] { 1, 1, 1, 0, 1, 1, 1 }, new double[] { 0 }), //6
-                new Sample(new double[] { 1, 0, 0, 1, 0, 0, 1 }, new double[] { 1 }), //7
-                new Sample(new double[] { 1, 1, 1, 1, 1, 1, 1 }, new double[] { 0 }), //8
-                new Sample(new double[] { 1, 1, 1, 1, 0, 1, 1 }, new double[] { 1 })  //9
+                new Sample(new double[] { 1, 1, 0, 1, 1, 1, 1 }, 
+                    new double[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }), //0
+
+                new Sample(new double[] { 0, 0, 0, 1, 0, 0, 1 }, 
+                    new double[] { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 }), //1
+
+                new Sample(new double[] { 1, 0, 1, 1, 1, 1, 0 }, 
+                    new double[] { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 }), //2
+
+                new Sample(new double[] { 1, 0, 1, 1, 0, 1, 1 }, 
+                    new double[] { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 }), //3
+
+                new Sample(new double[] { 0, 1, 1, 1, 0, 0, 1 }, 
+                    new double[] { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 }), //4
+
+                new Sample(new double[] { 1, 1, 1, 0, 0, 1, 1 }, 
+                    new double[] { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 }), //5
+
+                new Sample(new double[] { 1, 1, 1, 0, 1, 1, 1 }, 
+                    new double[] { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 }), //6
+
+                new Sample(new double[] { 1, 0, 0, 1, 0, 0, 1 }, 
+                    new double[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 }), //7
+
+                new Sample(new double[] { 1, 1, 1, 1, 1, 1, 1 }, 
+                    new double[] { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 }), //8
+
+                new Sample(new double[] { 1, 1, 1, 1, 0, 1, 1 }, 
+                    new double[] { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 })  //9
             });
             
             
-            for (var i = 0; i < 300; i++)
+            for (var i = 0; i < 400; i++)
             {
                 Console.WriteLine($"current lesson is {i}");
                 while(epoch.HasNextRandomSample)
@@ -53,36 +70,13 @@ namespace NN0
                 epoch.ResetRandomizer();
             }
             // Control Check
-            var result0 = nn.Calculate(new double[] { 1, 1, 0, 1, 1, 1, 1 });
-            Console.WriteLine($"0 is {string.Join(", ", result0)}");
-
-            var result1 = nn.Calculate(new double[] { 0, 0, 0, 1, 0, 0, 1 });
-            Console.WriteLine($"1 is {string.Join(", ", result1)}");
-
-            var result2 = nn.Calculate(new double[] { 1, 0, 1, 1, 1, 1, 0 });
-            Console.WriteLine($"2 is {string.Join(", ", result2)}");
-
-            var result3 = nn.Calculate(new double[] { 1, 0, 1, 1, 0, 1, 1 });
-            Console.WriteLine($"3 is {string.Join(", ", result3)}");
-
-            var result4 = nn.Calculate(new double[] { 0, 1, 1, 1, 0, 0, 1 });
-            Console.WriteLine($"4 is {string.Join(", ", result4)}");
-
-            var result5 = nn.Calculate(new double[] { 1, 1, 1, 0, 0, 1, 1 });
-            Console.WriteLine($"5 is {string.Join(", ", result5)}");
-
-            var result6 = nn.Calculate(new double[] { 1, 1, 1, 0, 1, 1, 1 });
-            Console.WriteLine($"6 is {string.Join(", ", result6)}");
-
-            var result7 = nn.Calculate(new double[] { 1, 0, 0, 1, 0, 0, 1 });
-            Console.WriteLine($"7 is {string.Join(", ", result7)}");
-
-            var result8 = nn.Calculate(new double[] { 1, 1, 1, 1, 1, 1, 1 });
-            Console.WriteLine($"8 is {string.Join(", ", result8)}");
-
-            var result9 = nn.Calculate(new double[] { 1, 1, 1, 1, 0, 1, 1 });
-            Console.WriteLine($"9 is {string.Join(", ", result9)}");
-
+            foreach(var sample in epoch.Samples)
+            {
+                var result = nn.Calculate(sample.InputVector);
+                var shortResult = result.Select(r => Math.Round(r, 3));
+                Console.WriteLine($"result: {string.Join(", ", shortResult)}");
+                Console.WriteLine();
+            }
         }
     }
 }
