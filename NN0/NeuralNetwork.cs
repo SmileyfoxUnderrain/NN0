@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NN0.Functions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,7 +10,11 @@ namespace NN0
 {
     public class NeuralNetwork
     {
-        private const double STEP = 1;
+        public NeuralNetwork(double descentStep = 0.01)
+        {
+            DescentStep = descentStep;
+        }
+        public double DescentStep { get; set; }
         public IEnumerable<Neuron> InputNeurons { get; set; }
         public IEnumerable<Neuron> OutputNeurons { get; set; }
         public IEnumerable<Neuron> Neurons { get; set; }
@@ -68,9 +73,8 @@ namespace NN0
         {
             var outputValue = neuron.OutputValue;
             var error = outputValue - awaitedValue;
-            
-            // sigma * omega * f * (1 - f)
-            var localGradient = error * outputValue * (1 - outputValue);
+
+            var localGradient = error * neuron.ActivationFunction.Derivative(outputValue);//outputValue * (1 - outputValue);
             //Console.WriteLine($"LastLayer error = {error}, local gradient = {localGradient}");
             var synapsesToModify = neuron.Dendrites.ToList();
             if (neuron.SynapseToBias != null)
@@ -81,18 +85,25 @@ namespace NN0
                 var previousLayerNeuron = d.GetOtherNeuron(neuron);
                 var previousOutputValue = previousLayerNeuron.OutputValue;
                 var weight = d.Weight;
-                d.Weight = weight - STEP * localGradient * previousOutputValue;
+                d.Weight = weight - DescentStep * localGradient * previousOutputValue;
 
-                previousLayerNeuron.BackPropagate(d, localGradient, STEP);
+                previousLayerNeuron.BackPropagate(d, localGradient, DescentStep);
             };
         }
     }
     public class NeuralNetworkFactory
     {
         public static readonly double DEFAULT_WEIGHT = 1;
-        public static NeuralNetwork CreateByLayerSizes(IEnumerable<int> layerSizes) 
+        public static NeuralNetwork CreateByFunctionTypeAndLayerSizes(ActivationFunctionType type,
+             IEnumerable<int> layerSizes, double descentStep = 0.01)
         {
-            var network = new NeuralNetwork();
+            var function = FunctionFactory.GetByType(type);
+            return CreateByFunctionAndLayerSizes(function, layerSizes, descentStep);
+        }
+        public static NeuralNetwork CreateByFunctionAndLayerSizes(IActivationFunction activationFunction, 
+            IEnumerable<int> layerSizes, double descentStep = 0.01) 
+        {
+            var network = new NeuralNetwork(descentStep);
             var networkNeurons = new List<Neuron>();
             var layersCount = layerSizes.Count();
             var previousLayer = new List<Neuron>();
@@ -104,7 +115,7 @@ namespace NN0
                     continue;
 
                 // Creating neurons for the layer includind one extra neuron to be the bias
-                var neuronsOnLayer = Enumerable.Range(1, layerSize).Select(o => new Neuron())
+                var neuronsOnLayer = Enumerable.Range(1, layerSize).Select(o => new Neuron(activationFunction))
                     .ToList();
                 networkNeurons.AddRange(neuronsOnLayer);
 
@@ -114,15 +125,15 @@ namespace NN0
                     neuronsOnLayer.ToList().ForEach(n => n.IsOnTheFirstLayer = true);
                     network.InputNeurons = neuronsOnLayer.ToList();
                     previousLayer = neuronsOnLayer;
-                    AddBias(networkNeurons, previousLayer);
+                    AddBias(networkNeurons, previousLayer, activationFunction);
                 }
 
-                // If it's not the firs nor the last layer
+                // If it's not the first nor the last layer
                 else if (i < layersCount - 1)
                 {
                     SubscribeOneLayerToAnother(neuronsOnLayer, previousLayer);
                     previousLayer = neuronsOnLayer;
-                    AddBias(networkNeurons, previousLayer);
+                    AddBias(networkNeurons, previousLayer, activationFunction);
                 }
                 // The output layer
                 else
@@ -135,9 +146,10 @@ namespace NN0
             return network;
         }
         // Add a bias to the current layer
-        private static void AddBias(IList<Neuron> networkNeurons, IList<Neuron> previousLayer)
+        private static void AddBias(
+            IList<Neuron> networkNeurons, IList<Neuron> previousLayer, IActivationFunction function)
         {
-            var biasOnLayer = new Neuron() { IsBias = true };
+            var biasOnLayer = new Neuron(function) { IsBias = true };
             networkNeurons.Add(biasOnLayer);
             previousLayer.Add(biasOnLayer);
         }

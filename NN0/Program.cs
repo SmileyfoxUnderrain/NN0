@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NN0.Functions;
+using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,7 +25,9 @@ namespace NN0
         static void Main(string[] args)
         {
             Console.WriteLine("Hello World!");
-            var nn = NeuralNetworkFactory.CreateByLayerSizes(new[] { 7, 8, 10 });
+            var nn = NeuralNetworkFactory
+                .CreateByFunctionTypeAndLayerSizes(ActivationFunctionType.Logistic, new[] { 7, 8, 10 }, 1);
+
             var epoch = new Epoch();
             epoch.Samples.AddRange(new[] {
                 new Sample(new double[] { 1, 1, 0, 1, 1, 1, 1 }, 

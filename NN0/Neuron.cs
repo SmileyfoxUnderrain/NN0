@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using NN0.Functions;
 
 namespace NN0
 {
@@ -19,8 +20,9 @@ namespace NN0
         protected int _stepsToInput = int.MaxValue;
 
         // Neuron needs to be synchronized in the network
-        public Neuron(bool isBias = false)
+        public Neuron(IActivationFunction activationFunction, bool isBias = false)
         {
+            ActivationFunction = activationFunction;
             IsBias = isBias;
             Synapses = new ObservableCollection<Synapse>();
             Synapses.CollectionChanged += Connections_CollectionChanged;
@@ -28,6 +30,7 @@ namespace NN0
 
         public delegate void NeuroSignalEvent(NeuroSignal signal);
         public event NeuroSignalEvent Signal;
+        public IActivationFunction ActivationFunction { get; set; }
         public bool IsOnTheFirstLayer 
         {
             get { return _isOnTheFirstLayer; }
@@ -55,7 +58,7 @@ namespace NN0
             set 
             { 
                 _sum = value;
-                OutputValue = ActivationFunction(_sum);
+                OutputValue = ActivationFunction.Function(_sum);
             }
         }
         public double OutputValue { get; set; }
@@ -180,7 +183,7 @@ namespace NN0
             var weightedSum = _outputSynapsesGradients.Sum(c => c.Value * c.Key.Weight);
             // 2. Calculate local gradient 
             // weightedSum(sigma * omega) * f * (1 - f)
-            var localGradient = weightedSum * ActivationFunctionDerivative(OutputValue);
+            var localGradient = weightedSum * ActivationFunction.Derivative(OutputValue);
             // 3. Run backPropagations to all other input connections
             //Console.WriteLine($"MidLayer weightedSum = {weightedSum}, local gradient = {localGradient}");
             var synapsesToModify = Dendrites.ToList();
@@ -211,18 +214,11 @@ namespace NN0
             _stepsToInput = Synapses.Min(c => c.GetOtherNeuron(this).StepsToInput) + 1;
             Console.WriteLine($"My layer is {StepsToInput}");
         }
-        // TODO make activationFunction changeable
-        private double ActivationFunction(double x)
-        {
-            var ret = 1 / (1 + Math.Pow(Math.E, x * (-1)));
-            return ret;
-        }
-        private double ActivationFunctionDerivative(double x)
-        {
-            var ret = x * (1 - x);
-            return ret;
-        }
     }
+    // Not all possible functions are enumerated here
+    // but only those which can be created automatically
+    // without additional coefficients
+
     public class NeuroSignal : EventArgs
     {
         public double Value { get; }
