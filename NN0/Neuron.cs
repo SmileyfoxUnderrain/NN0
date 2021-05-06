@@ -12,15 +12,15 @@ namespace NN0
     {
         private Dictionary<Synapse, double> _dendritesInputValues = new Dictionary<Synapse, double>();
         private Dictionary<Synapse, double> _outputSynapsesGradients = new Dictionary<Synapse, double>();
+        private const double BIAS_OUTPUT = 0.5;
         private bool _isOnTheFirstLayer;
         private bool _isBias;
         private double _sum;
         protected int _stepsToInput = int.MaxValue;
 
         // Neuron needs to be synchronized in the network
-        public Neuron(bool isOnTheFirstLayer = false, bool isBias = false)
+        public Neuron(bool isBias = false)
         {
-            IsOnTheFirstLayer = isOnTheFirstLayer;
             IsBias = isBias;
             Synapses = new ObservableCollection<Synapse>();
             Synapses.CollectionChanged += Connections_CollectionChanged;
@@ -61,6 +61,8 @@ namespace NN0
         public double OutputValue { get; set; }
         public int StepsToInput { get { return _stepsToInput; } }
         public ObservableCollection<Synapse> Synapses { get; }
+        // Dendrites list doesn't include a synapse to bias:
+        // Bias does not participate in the forwarding the signals from inputs
         public IEnumerable<Synapse> Dendrites
         {
             get
@@ -71,15 +73,17 @@ namespace NN0
                 return Synapses.Where(c => 
                     // PreviousLayer neurons
                     c.GetOtherNeuron(this).StepsToInput == StepsToInput - 1
-                    // Or Bias
-                    || c.GetOtherNeuron(this).IsBias);
+                    // And not bias
+                    && !c.GetOtherNeuron(this).IsBias);
             }
         }
         public IEnumerable<Synapse> Axons
         {
             get
             {
-                return Synapses.Where(c => c.GetOtherNeuron(this).StepsToInput == StepsToInput + 1);
+                return Synapses.Where(c => 
+                    c.GetOtherNeuron(this).StepsToInput == StepsToInput + 1
+                    && !c.GetOtherNeuron(this).IsBias);
             }
         }
         public Synapse SynapseToBias
@@ -107,9 +111,11 @@ namespace NN0
             if (!Dendrites.All(d => _dendritesInputValues.Keys.Contains(d)))
                 return;
 
-            // Else calculate sum and output value and send to the axons
-            Sum = _dendritesInputValues.Sum(kvp => kvp.Key.Weight * kvp.Value);
+            // Else calculate sum and output value and send to the axons   
+            // If current neuron has a synapse to the bias, the sum will not be 0 after reset
+            Sum += _dendritesInputValues.Sum(kvp => kvp.Key.Weight * kvp.Value);
             IsCalculationComplete = true;
+
             // If no next layer neurons subscribed for Signal event, do nothing
             if (Signal == null)
                 return;
@@ -127,6 +133,9 @@ namespace NN0
             if (!IsOnTheFirstLayer)
                 return;
 
+            if (IsBias)
+                return;
+
             OutputValue = value;
             Signal(new NeuroSignal(this, OutputValue));
         }
@@ -134,9 +143,14 @@ namespace NN0
         public void Reset() 
         {
             IsCalculationComplete = false;
-            OutputValue = 0;
+           
+            if (IsBias)
+                OutputValue = BIAS_OUTPUT;
+            else
+                OutputValue = 0;
+
             Sum = 0;
-            // Bias doesn't send the signal itself, so include it to the sum manually
+            // Bias doesn't send the signal itself, so include it's influence to the sum manually
             if (SynapseToBias != null)
                 Sum += SynapseToBias.GetOtherNeuron(this).OutputValue * SynapseToBias.Weight;
 
@@ -146,6 +160,9 @@ namespace NN0
 
         public void BackPropagate(Synapse connection, double receiversGradient, double step)
         {
+            if (IsBias)
+                return;
+
             if (IsOnTheFirstLayer)
                 return;
 
@@ -166,7 +183,11 @@ namespace NN0
             var localGradient = weightedSum * ActivationFunctionDerivative(OutputValue);
             // 3. Run backPropagations to all other input connections
             //Console.WriteLine($"MidLayer weightedSum = {weightedSum}, local gradient = {localGradient}");
-            this.Dendrites.ToList().ForEach(c =>
+            var synapsesToModify = Dendrites.ToList();
+            if (SynapseToBias != null)
+                synapsesToModify.Add(SynapseToBias);
+
+            synapsesToModify.ForEach(c =>
             {
                 var previousLayerNeuron = c.GetOtherNeuron(this);
                 c.Weight -= step * localGradient * previousLayerNeuron.OutputValue;

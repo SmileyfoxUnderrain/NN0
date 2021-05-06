@@ -9,7 +9,7 @@ namespace NN0
 {
     public class NeuralNetwork
     {
-        private readonly double _step = 1;
+        private const double STEP = 1;
         public IEnumerable<Neuron> InputNeurons { get; set; }
         public IEnumerable<Neuron> OutputNeurons { get; set; }
         public IEnumerable<Neuron> Neurons { get; set; }
@@ -72,14 +72,18 @@ namespace NN0
             // sigma * omega * f * (1 - f)
             var localGradient = error * outputValue * (1 - outputValue);
             //Console.WriteLine($"LastLayer error = {error}, local gradient = {localGradient}");
-            foreach (var d in neuron.Dendrites)
+            var synapsesToModify = neuron.Dendrites.ToList();
+            if (neuron.SynapseToBias != null)
+                synapsesToModify.Add(neuron.SynapseToBias);
+
+            foreach (var d in synapsesToModify)
             {
                 var previousLayerNeuron = d.GetOtherNeuron(neuron);
                 var previousOutputValue = previousLayerNeuron.OutputValue;
                 var weight = d.Weight;
-                d.Weight = weight - _step * localGradient * previousOutputValue;
+                d.Weight = weight - STEP * localGradient * previousOutputValue;
 
-                previousLayerNeuron.BackPropagate(d, localGradient, _step);
+                previousLayerNeuron.BackPropagate(d, localGradient, STEP);
             };
         }
     }
@@ -96,17 +100,21 @@ namespace NN0
             for (int i = 0; i < layersCount; i++)
             {
                 var layerSize = layerSizes.ElementAt(i);
+                if (layerSize < 1)
+                    continue;
+
+                // Creating neurons for the layer includind one extra neuron to be the bias
                 var neuronsOnLayer = Enumerable.Range(1, layerSize).Select(o => new Neuron())
                     .ToList();
-
                 networkNeurons.AddRange(neuronsOnLayer);
 
                 // If it's the first layer
                 if (i == 0)
                 {
                     neuronsOnLayer.ToList().ForEach(n => n.IsOnTheFirstLayer = true);
-                    network.InputNeurons = neuronsOnLayer;
+                    network.InputNeurons = neuronsOnLayer.ToList();
                     previousLayer = neuronsOnLayer;
+                    AddBias(networkNeurons, previousLayer);
                 }
 
                 // If it's not the firs nor the last layer
@@ -114,6 +122,7 @@ namespace NN0
                 {
                     SubscribeOneLayerToAnother(neuronsOnLayer, previousLayer);
                     previousLayer = neuronsOnLayer;
+                    AddBias(networkNeurons, previousLayer);
                 }
                 // The output layer
                 else
@@ -124,6 +133,13 @@ namespace NN0
             }
             network.Neurons = networkNeurons;
             return network;
+        }
+        // Add a bias to the current layer
+        private static void AddBias(IList<Neuron> networkNeurons, IList<Neuron> previousLayer)
+        {
+            var biasOnLayer = new Neuron() { IsBias = true };
+            networkNeurons.Add(biasOnLayer);
+            previousLayer.Add(biasOnLayer);
         }
         // Subscribe every neuron on the current layer with everry neuron on the previous layer
         // Assume that the weights are all equals the same value to be changed during learning
@@ -140,6 +156,5 @@ namespace NN0
                     prevNeuron.Signal += currentNeuron.OnIncomingSignal;
                 }
         }
-
     }
 }

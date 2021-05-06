@@ -24,7 +24,7 @@ namespace NN0
         static void Main(string[] args)
         {
             Console.WriteLine("Hello World!");
-            var nn = NeuralNetworkFactory.CreateByLayerSizes(new[] { 7, 9, 10 });
+            var nn = NeuralNetworkFactory.CreateByLayerSizes(new[] { 7, 8, 10 });
             var epoch = new Epoch();
             epoch.Samples.AddRange(new[] {
                 new Sample(new double[] { 1, 1, 0, 1, 1, 1, 1 }, 
