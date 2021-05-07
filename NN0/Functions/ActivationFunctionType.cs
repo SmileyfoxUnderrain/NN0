@@ -8,7 +8,7 @@ namespace NN0.Functions
 {
     public enum ActivationFunctionType
     {
-        Identiy,
+        Identity,
         BinaryStep,
         Logistic,
         Tanh,

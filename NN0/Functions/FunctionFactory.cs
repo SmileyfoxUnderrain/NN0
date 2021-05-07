@@ -18,7 +18,7 @@ namespace NN0.Functions
                 return new BinaryStepFunction();
             if (type == ActivationFunctionType.Gaussian)
                 return new GaussianFunction();
-            if (type == ActivationFunctionType.Identiy)
+            if (type == ActivationFunctionType.Identity)
                 return new IdentityFunction();
             if (type == ActivationFunctionType.LeakyReLU)
                 return new LeakyReLuFunction();

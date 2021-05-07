@@ -13,7 +13,7 @@ namespace NN0
     {
         private Dictionary<Synapse, double> _dendritesInputValues = new Dictionary<Synapse, double>();
         private Dictionary<Synapse, double> _outputSynapsesGradients = new Dictionary<Synapse, double>();
-        private const double BIAS_OUTPUT = 0.5;
+        private const double BIAS_OUTPUT = 1;
         private bool _isOnTheFirstLayer;
         private bool _isBias;
         private double _sum;
@@ -58,7 +58,8 @@ namespace NN0
             set 
             { 
                 _sum = value;
-                OutputValue = ActivationFunction.Function(_sum);
+                if(!IsOnTheFirstLayer && !IsBias)
+                    OutputValue = ActivationFunction.Function(_sum);
             }
         }
         public double OutputValue { get; set; }
@@ -202,6 +203,9 @@ namespace NN0
         private void Connections_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
             if (IsOnTheFirstLayer)
+                return;
+
+            if (IsBias)
                 return;
 
             if (!Synapses.Any())

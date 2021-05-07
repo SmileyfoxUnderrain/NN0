@@ -17,7 +17,7 @@ namespace NN0
         public IEnumerable<double> AwaitedResponse { get; }
     }
 
-    public class Epoch
+    public class Selection
     {
         private List<Sample> _samples = new List<Sample>();
         private Random _rnd = new Random();

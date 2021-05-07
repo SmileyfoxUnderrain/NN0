@@ -51,7 +51,7 @@ namespace NN0
             Task.Run(() => SendToInput(inputs));
             // await for calculation completes
             while (!OutputNeurons.All(n => n.IsCalculationComplete))
-                Thread.Sleep(5);
+                Thread.Sleep(1);
 
             return OutputValues;
         }
@@ -69,12 +69,51 @@ namespace NN0
                 BackPropagate(OutputNeurons.ElementAt(i), outputs.ElementAt(i));
 
         }
+        public void LearnWithSelection(Selection epoch, int times)
+        {
+            for (var i = 0; i < times; i++)
+            {
+                Console.WriteLine($"current lesson is {i}");
+                while (epoch.HasNextRandomSample)
+                {
+                    var sample = epoch.GetNextRandomSample();
+                    Learn(sample.InputVector, sample.AwaitedResponse);
+                }
+                epoch.ResetRandomizer();
+            }
+        }
+        public void CheckWithSelection(Selection selection) 
+        {
+            foreach (var sample in selection.Samples)
+            {
+                var result = Calculate(sample.InputVector);
+                DisplayResult(result);
+            }
+        }
+        public void CheckWithInputVector(IEnumerable<double> inputVector)
+        {
+            var res = Calculate(inputVector);
+            DisplayResult(res);
+
+        }
+        public void CheckWithMultipleVectors(IEnumerable<IEnumerable<double>> inputVectors)
+        {
+            foreach (var inputVector in inputVectors)
+                CheckWithInputVector(inputVector);
+        }
+        private void DisplayResult(IEnumerable<double> result)
+        {
+            var shortResult = result.Select(r => Math.Round(r, 3));
+            Console.WriteLine($"result: {string.Join(", ", shortResult)}");
+            Console.WriteLine();
+        }
+            
         private void BackPropagate(Neuron neuron, double awaitedValue)
         {
             var outputValue = neuron.OutputValue;
             var error = outputValue - awaitedValue;
 
-            var localGradient = error * neuron.ActivationFunction.Derivative(outputValue);//outputValue * (1 - outputValue);
+            var localGradient = error * neuron.ActivationFunction.Derivative(outputValue);
             //Console.WriteLine($"LastLayer error = {error}, local gradient = {localGradient}");
             var synapsesToModify = neuron.Dendrites.ToList();
             if (neuron.SynapseToBias != null)
