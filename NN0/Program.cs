@@ -12,8 +12,7 @@ namespace NN0
         static void Main(string[] args)
         {
             CelsiusToFarenheit();
-            // SegmentDigitsProblem();
-
+            //SegmentDigits();
         }
         /// <summary>
         /// The task about a small NN that teaches to convert temperature values
@@ -39,7 +38,7 @@ namespace NN0
                 new Sample(new double[] {22}, new double[] {72}),
                 new Sample(new double[] {38}, new double[] {100}),
             });
-            nn.LearnWithSelection(teachingSelection, 500);
+            nn.LearnWithSelection(teachingSelection, 600);
             nn.CheckWithSelection(teachingSelection);
             nn.CheckWithInputVector(new double[] { 100 }); // Should be 212
             var weights = nn.OutputNeurons.First().Synapses.Select(s => s.Weight);

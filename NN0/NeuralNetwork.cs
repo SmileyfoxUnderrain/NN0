@@ -51,7 +51,7 @@ namespace NN0
             Task.Run(() => SendToInput(inputs));
             // await for calculation completes
             while (!OutputNeurons.All(n => n.IsCalculationComplete))
-                Thread.Sleep(1);
+                Thread.Sleep(0);
 
             return OutputValues;
         }
