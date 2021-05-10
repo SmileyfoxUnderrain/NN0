@@ -11,10 +11,10 @@ namespace NN0
         public Sample(IEnumerable<double> inputVector, IEnumerable<double> aeaitedResponse)
         {
             InputVector = inputVector;
-            AwaitedResponse = aeaitedResponse;
+            ExpectedResponse = aeaitedResponse;
         }
         public IEnumerable<double> InputVector { get; }
-        public IEnumerable<double> AwaitedResponse { get; }
+        public IEnumerable<double> ExpectedResponse { get; }
     }
 
     public class Selection

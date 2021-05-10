@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace NN0.Functions
 {
-    public class FunctionFactory
+    public class ActivationFunctionFactory
     {
         public static IActivationFunction GetByType(ActivationFunctionType type)
         {

@@ -1,4 +1,5 @@
 ﻿using NN0.Functions;
+using NN0.LossFunctions;
 using System;
 using System.Linq;
 using System.Threading;
@@ -11,8 +12,63 @@ namespace NN0
     {
         static void Main(string[] args)
         {
-            CelsiusToFarenheit();
+            PointsOnThePlaneOverfitting();
+            //CelsiusToFarenheit();
             //SegmentDigits();
+        }
+        /// <summary>
+        /// The probleb shows how overfitting occurs in NN with excess number of 
+        /// neurons.
+        /// On the hidden layer we will use the linear activation function.
+        /// Because it's the classification problem, 
+        /// it will be better to use the activation function with an output in the range -1, 1
+        /// on the output layer: There are tahn and softsign.
+        /// The hinge and squared hinge are better situable to be used as a loss function
+        /// to evaluate the quality criterion.
+        /// The overfitting happens after ~200 cycles
+        /// </summary>
+        private static void PointsOnThePlaneOverfitting()
+        {
+            var nn = NeuralNetworkFactory
+                .CreateByFunctionTypeAndLayerSizes(ActivationFunctionType.Identity, new[] { 2, 1, 1, 1, 2 }, 0.01);
+            nn.SetOutputActivationFunctionType(ActivationFunctionType.Tanh);
+
+            var teachingSelection = new Selection();
+            teachingSelection.Samples.AddRange(new[] 
+            { 
+                // Side A
+                new Sample(new double [] { -3, 0 }, new double [] { 1, -1 }),
+                new Sample(new double [] { -3, 1 }, new double [] { 1, -1 }),
+                new Sample(new double [] { -3, 2 }, new double [] { 1, -1 }),
+                new Sample(new double [] { -3, 3 }, new double [] { 1, -1 }),
+                new Sample(new double [] { -2, 3 }, new double [] { 1, -1 }),
+                new Sample(new double [] { -1, 3 }, new double [] { 1, -1 }),
+                new Sample(new double [] { 0, 3 }, new double [] { 1, -1 }),
+
+                // Side B
+                new Sample(new double [] { -1, -3 }, new double [] { -1, 1 }),
+                new Sample(new double [] { -1, -2 }, new double [] { -1, 1 }),
+                new Sample(new double [] { -1, -1 }, new double [] { -1, 1 }),
+                new Sample(new double [] { -1, 0 }, new double [] { -1, 1 }),
+                new Sample(new double [] { 0, 1 }, new double [] { -1, 1 }),
+                new Sample(new double [] { 1, 1 }, new double [] { -1, 1 }),
+                new Sample(new double [] { 2, 1 }, new double [] { -1, 1 }),
+                new Sample(new double [] { 3, 1 }, new double [] { -1, 1 }),
+                new Sample(new double [] { -0.9, 0.9 }, new double [] { -1, 1 }),
+            });
+
+            var controlSelection = new Selection();
+            controlSelection.Samples.AddRange( new[] 
+            { 
+                // Potential errors
+                new Sample(new double [] { -1.1, 1.1 }, new double [] { 1, -1 }),
+                new Sample(new double [] { -2.5, -1 }, new double [] { -1, 1 }),
+                new Sample(new double [] { 1, 2.5 }, new double [] { -1, 1 })
+            });
+
+            nn.TrainWithLossType(LossFunctionType.Hinge, 300, teachingSelection, controlSelection);
+            nn.CheckWithSelection(teachingSelection);
+            nn.CheckWithSelection(controlSelection);
         }
         /// <summary>
         /// The task about a small NN that teaches to convert temperature values
@@ -38,7 +94,7 @@ namespace NN0
                 new Sample(new double[] {22}, new double[] {72}),
                 new Sample(new double[] {38}, new double[] {100}),
             });
-            nn.LearnWithSelection(teachingSelection, 600);
+            nn.TrainWithSelection(teachingSelection, 1000);
             nn.CheckWithSelection(teachingSelection);
             nn.CheckWithInputVector(new double[] { 100 }); // Should be 212
             var weights = nn.OutputNeurons.First().Synapses.Select(s => s.Weight);
@@ -56,13 +112,13 @@ namespace NN0
         /// take a brightness level of the each segment
         /// On the output we are awaiting for the nn to guess the digit that was indicated:
         /// So, we need 10 neurons on the output layer
-        /// We will also add one hidden layer with quantity of 8 neurons on it
-        /// 7-8-10
+        /// Having Biases, we don't need a hidden layer
+        /// 
         /// </summary>
         private static void SegmentDigits()
         {
             var nn = NeuralNetworkFactory
-                .CreateByFunctionTypeAndLayerSizes(ActivationFunctionType.Logistic, new[] { 7, 8, 10 }, 1);
+                .CreateByFunctionTypeAndLayerSizes(ActivationFunctionType.Logistic, new[] { 7, 10 }, 1);
 
             var selection = new Selection();
             selection.Samples.AddRange(new[] {
@@ -97,7 +153,7 @@ namespace NN0
                     new double[] { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 })  //9
             });
 
-            nn.LearnWithSelection(selection, 400);
+            nn.TrainWithSelection(selection, 400);
             nn.CheckWithSelection(selection);
         }
     }

@@ -1,4 +1,5 @@
 ﻿using NN0.Functions;
+using NN0.LossFunctions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,11 +11,14 @@ namespace NN0
 {
     public class NeuralNetwork
     {
-        public NeuralNetwork(double descentStep = 0.01)
+        public NeuralNetwork(double lambda = 0.01)
         {
-            DescentStep = descentStep;
+            Lambda = lambda;
         }
-        public double DescentStep { get; set; }
+        /// <summary>
+        /// Regularization rate for the descent steps
+        /// </summary>
+        public double Lambda { get; set; }
         public IEnumerable<Neuron> InputNeurons { get; set; }
         public IEnumerable<Neuron> OutputNeurons { get; set; }
         public IEnumerable<Neuron> Neurons { get; set; }
@@ -56,7 +60,7 @@ namespace NN0
             return OutputValues;
         }
 
-        public void Learn(IEnumerable<double> inputs, IEnumerable<double> outputs)
+        public void Train(IEnumerable<double> inputs, IEnumerable<double> outputs)
         {
             
             if (outputs.Count() != OutputNeurons.Count())
@@ -69,18 +73,110 @@ namespace NN0
                 BackPropagate(OutputNeurons.ElementAt(i), outputs.ElementAt(i));
 
         }
-        public void LearnWithSelection(Selection epoch, int times)
+        public void TrainWithSelection(Selection sel, int times)
         {
             for (var i = 0; i < times; i++)
             {
                 Console.WriteLine($"current lesson is {i}");
-                while (epoch.HasNextRandomSample)
+                while (sel.HasNextRandomSample)
                 {
-                    var sample = epoch.GetNextRandomSample();
-                    Learn(sample.InputVector, sample.AwaitedResponse);
+                    var sample = sel.GetNextRandomSample();
+                    Train(sample.InputVector, sample.ExpectedResponse);
                 }
-                epoch.ResetRandomizer();
+                sel.ResetRandomizer();
             }
+        }
+        public void TrainWitLossFunctionAndDifferentSets(ILossFunction lossFunction, int maxTimes, Selection sel, Selection validationSet)
+        {
+            for (var i = 0; i < maxTimes; i++)
+            {
+                // Teach the nn with training data set
+                Console.Write($"current lesson is {i}");
+                while (sel.HasNextRandomSample)
+                {
+                    var sample = sel.GetNextRandomSample();
+                    Train(sample.InputVector, sample.ExpectedResponse);
+                }
+                sel.ResetRandomizer();
+
+                // Evaluate the total loss for the trainig data set
+                double totalLoss = 0;
+                while (sel.HasNextRandomSample)
+                {
+                    var sample = sel.GetNextRandomSample();
+                    var loss = CalculateLossForSample(sample, lossFunction);
+                    totalLoss += loss;
+                }
+                sel.ResetRandomizer();
+                var averageLoss = totalLoss / sel.Samples.Count();
+
+                // Evaluate the loss for validation data set
+                var validationLoss =
+                    validationSet.Samples.Sum(s => CalculateLossForSample(s, lossFunction)) / validationSet.Samples.Count;
+
+                var lossDelta = Math.Abs(validationLoss - averageLoss);
+
+                Console.WriteLine($" Teacing loss = {averageLoss}, Validation loss = {validationLoss}, delta = {lossDelta}");
+            }
+        }
+        public void TrainWithLossFunctionUsingCrossValidation(ILossFunction lossFunction, int maxTimes, Selection sel)
+        {
+            if (sel.Samples.Count() <= 1)
+                throw new ArgumentException("Not enough samples to perform training");
+
+            for(var i = 0; i < maxTimes; i++)
+            {
+                // On the current epoch
+                // 20% of samples will be used to control 
+                // and will not participate in training directly
+                // The selection of the validation sample happens each training cycle
+                // It's called a cross-validation
+                int validationSetSize = sel.Samples.Count() / 5;
+                var validationSet = new List<Sample>();
+                for(int v = 0; v < validationSetSize; v++)
+                {
+                    validationSet.Add(sel.GetNextRandomSample());
+                }
+
+                // Teach the nn with training data set
+                Console.Write($"current lesson is {i}");
+                while (sel.HasNextRandomSample)
+                {
+                    var sample = sel.GetNextRandomSample();
+                    Train(sample.InputVector, sample.ExpectedResponse);
+                }
+                sel.ResetRandomizer();
+
+                // Evaluate the total loss for the trainig data set
+                double totalLoss = 0;
+                while (sel.HasNextRandomSample)
+                {
+                    var sample = sel.GetNextRandomSample();
+                    if (validationSet.Contains(sample))
+                        continue;
+
+                    var loss = CalculateLossForSample(sample, lossFunction);
+                    totalLoss += loss;
+                }
+                sel.ResetRandomizer();
+                var averageLoss = totalLoss / sel.Samples.Count();
+
+                // Evaluate the loss for validation data set
+                var validationLoss =
+                    validationSet.Sum(s => CalculateLossForSample(s, lossFunction)) / validationSetSize;
+
+                var lossDelta = Math.Abs(validationLoss - averageLoss);
+                
+                Console.WriteLine($" Teacing loss = {averageLoss}, Validation loss = {validationLoss}, delta = {lossDelta}");
+            }
+        }
+        public void TrainWithLossType(LossFunctionType lossType, int maxTimes, Selection sel, Selection validationSet = null)
+        {
+            var lossFunction = LossFunctionFactory.GetByType(lossType);
+            if (validationSet == null)
+                TrainWithLossFunctionUsingCrossValidation(lossFunction, maxTimes, sel);
+            else
+                TrainWitLossFunctionAndDifferentSets(lossFunction, maxTimes, sel, validationSet);
         }
         public void CheckWithSelection(Selection selection) 
         {
@@ -107,11 +203,21 @@ namespace NN0
             Console.WriteLine($"result: {string.Join(", ", shortResult)}");
             Console.WriteLine();
         }
+        public void SetOutputActivationFunctionType(ActivationFunctionType type)
+        {
+            var function = ActivationFunctionFactory.GetByType(type);
+            SetOutputActivationFunction(function);
+        }
+        public void SetOutputActivationFunction(IActivationFunction activationFunction)
+        {
+            foreach(var neuron in OutputNeurons)
+                neuron.ActivationFunction = activationFunction;
+        }
             
-        private void BackPropagate(Neuron neuron, double awaitedValue)
+        private void BackPropagate(Neuron neuron, double expectedValue)
         {
             var outputValue = neuron.OutputValue;
-            var error = outputValue - awaitedValue;
+            var error = outputValue - expectedValue; //e = y - d
 
             var localGradient = error * neuron.ActivationFunction.Derivative(outputValue);
             //Console.WriteLine($"LastLayer error = {error}, local gradient = {localGradient}");
@@ -124,25 +230,33 @@ namespace NN0
                 var previousLayerNeuron = d.GetOtherNeuron(neuron);
                 var previousOutputValue = previousLayerNeuron.OutputValue;
                 var weight = d.Weight;
-                d.Weight = weight - DescentStep * localGradient * previousOutputValue;
+                d.Weight = weight - Lambda * localGradient * previousOutputValue;
 
-                previousLayerNeuron.BackPropagate(d, localGradient, DescentStep);
+                previousLayerNeuron.BackPropagate(d, localGradient, Lambda);
             };
+        }
+        private double CalculateLossForSample(Sample sample, ILossFunction lossFunction)
+        {
+            var result = Calculate(sample.InputVector);
+            var receivedToExpectedPairs = result.Zip(sample.ExpectedResponse)
+                .Select(z => new Tuple<double, double>(z.First, z.Second));
+            var loss = lossFunction.CalculateLoss(receivedToExpectedPairs);
+            return loss;
         }
     }
     public class NeuralNetworkFactory
     {
         public static readonly double DEFAULT_WEIGHT = 1;
         public static NeuralNetwork CreateByFunctionTypeAndLayerSizes(ActivationFunctionType type,
-             IEnumerable<int> layerSizes, double descentStep = 0.01)
+             IEnumerable<int> layerSizes, double lambda = 0.01)
         {
-            var function = FunctionFactory.GetByType(type);
-            return CreateByFunctionAndLayerSizes(function, layerSizes, descentStep);
+            var function = ActivationFunctionFactory.GetByType(type);
+            return CreateByFunctionAndLayerSizes(function, layerSizes, lambda);
         }
         public static NeuralNetwork CreateByFunctionAndLayerSizes(IActivationFunction activationFunction, 
-            IEnumerable<int> layerSizes, double descentStep = 0.01) 
+            IEnumerable<int> layerSizes, double lambda = 0.01) 
         {
-            var network = new NeuralNetwork(descentStep);
+            var network = new NeuralNetwork(lambda);
             var networkNeurons = new List<Neuron>();
             var layersCount = layerSizes.Count();
             var previousLayer = new List<Neuron>();
@@ -193,7 +307,7 @@ namespace NN0
             previousLayer.Add(biasOnLayer);
         }
         // Subscribe every neuron on the current layer with everry neuron on the previous layer
-        // Assume that the weights are all equals the same value to be changed during learning
+        // Assume that the weights are all equals the same value to be changed during training
         private static void SubscribeOneLayerToAnother(IEnumerable<Neuron> currentLayer, IEnumerable<Neuron> previousLayer)
         {
             var rnd = new Random(DateTime.Now.Ticks.GetHashCode());
