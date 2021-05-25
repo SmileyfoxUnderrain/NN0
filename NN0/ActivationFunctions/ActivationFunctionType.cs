@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace NN0.Functions
+namespace NN0.ActivationFunctions
 {
     public enum ActivationFunctionType
     {
@@ -20,7 +20,8 @@ namespace NN0.Functions
         Arctg,
         Softsign,
         BentIdentity,
-        Sinc
+        Sinc,
+        Softmax,
     }
 }
 

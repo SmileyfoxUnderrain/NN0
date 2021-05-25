@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace NN0.Functions
+namespace NN0.ActivationFunctions
 {
-    public class EluFunction : IActivationFunction
+    public class EluFunction : ILayerIndependentFunction
     {
         
         public EluFunction(double alpha)

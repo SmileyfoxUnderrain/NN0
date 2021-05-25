@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace NN0.Functions
+namespace NN0.ActivationFunctions
 {
-    public class SeluFunction : IActivationFunction
+    public class SeluFunction : ILayerIndependentFunction
     {
         private const double LAMBDA = 1.0507;
         private const double ALPHA = 1.67326;

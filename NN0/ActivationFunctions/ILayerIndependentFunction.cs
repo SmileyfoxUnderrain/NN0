@@ -6,8 +6,9 @@ using System.Threading.Tasks;
 
 namespace NN0.ActivationFunctions
 {
-    public interface IActivationFunction
+    public interface ILayerIndependentFunction : IActivationFunction
     {
-
+        double Function(double x);
+        double Derivative(double x);
     }
 }

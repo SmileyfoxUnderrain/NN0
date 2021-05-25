@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using NN0.Functions;
+using NN0.ActivationFunctions;
 
 namespace NN0
 {
@@ -20,9 +20,12 @@ namespace NN0
         protected int _stepsToInput = int.MaxValue;
 
         // Neuron needs to be synchronized in the network
-        public Neuron(IActivationFunction activationFunction, bool isBias = false)
+        public Neuron(IActivationFunction activationFunction, bool isBias = false, bool isOnTheFirstLayer = false)
         {
-            ActivationFunction = activationFunction;
+            IsOnTheFirstLayer = isOnTheFirstLayer;
+            if(!isOnTheFirstLayer)
+                ActivationFunction = activationFunction;
+
             IsBias = isBias;
             Synapses = new ObservableCollection<Synapse>();
             Synapses.CollectionChanged += Connections_CollectionChanged;
@@ -55,12 +58,7 @@ namespace NN0
         public double Sum 
         {
             get { return _sum; }
-            set 
-            { 
-                _sum = value;
-                if(!IsOnTheFirstLayer && !IsBias)
-                    OutputValue = ActivationFunction.Function(_sum);
-            }
+            set { _sum = value; }
         }
         public double OutputValue { get; set; }
         public int StepsToInput { get { return _stepsToInput; } }
@@ -118,9 +116,30 @@ namespace NN0
             // Else calculate sum and output value and send to the axons   
             // If current neuron has a synapse to the bias, the sum will not be 0 after reset
             Sum += _dendritesInputValues.Sum(kvp => kvp.Key.Weight * kvp.Value);
-            IsCalculationComplete = true;
 
-            // If no next layer neurons subscribed for Signal event, do nothing
+            // In the case when current neuron uses a layer-dependent function
+            if(ActivationFunction is SoftmaxFunction neuronSoftMax)
+            {
+                neuronSoftMax.ApplySum();
+                return;
+                // It's supposed than the activation function will set the output value
+                // to the current neuron when all neurons on the current layer will send their sums
+                // It's also supposed that the layer-dependent activation functions can be used
+                // on the output layer only, so the neuron don't need to send a signal
+            }
+            // in the case it's layer-independent activation funtion
+            if (ActivationFunction is ILayerIndependentFunction neuronFunction)
+                if (!IsOnTheFirstLayer && !IsBias)
+                {
+                    OutputValue = neuronFunction.Function(_sum);
+                    IsCalculationComplete = true;
+
+                    SendSignal();
+                }
+        }
+        public void SendSignal()
+        {
+            // If no next layer neurons subscribed for Signal event do not send a signal
             if (Signal == null)
                 return;
 
@@ -153,10 +172,11 @@ namespace NN0
             else
                 OutputValue = 0;
 
-            Sum = 0;
+            _sum = 0;
+            //Sum = 0;
             // Bias doesn't send the signal itself, so include it's influence to the sum manually
             if (SynapseToBias != null)
-                Sum += SynapseToBias.GetOtherNeuron(this).OutputValue * SynapseToBias.Weight;
+                _sum += SynapseToBias.GetOtherNeuron(this).OutputValue * SynapseToBias.Weight;
 
             _dendritesInputValues.Clear();
             _outputSynapsesGradients.Clear();
@@ -173,6 +193,14 @@ namespace NN0
             if (!Axons.Contains(connection))
                 return;// And do not throw
 
+            if (ActivationFunction is not ILayerIndependentFunction)
+                return;
+            //if (_outputSynapsesGradients.Keys.ToList().Contains(connection))
+            //{
+            //    Console.WriteLine("Already have a connection");
+            //    return;
+            //}
+
             _outputSynapsesGradients.Add(connection, receiversGradient);
             var backPropagatedConnections = _outputSynapsesGradients.Keys;
             // if not all output connections are backPropagated yet, do nothing
@@ -184,7 +212,8 @@ namespace NN0
             var weightedSum = _outputSynapsesGradients.Sum(c => c.Value * c.Key.Weight);
             // 2. Calculate local gradient 
             // weightedSum(sigma * omega) * f * (1 - f)
-            var localGradient = weightedSum * ActivationFunction.Derivative(OutputValue);
+            var activationFunction = ActivationFunction as ILayerIndependentFunction;
+            var localGradient = weightedSum * activationFunction.Derivative(OutputValue);
             // 3. Run backPropagations to all other input connections
             //Console.WriteLine($"MidLayer weightedSum = {weightedSum}, local gradient = {localGradient}");
             var synapsesToModify = Dendrites.ToList();
@@ -211,17 +240,14 @@ namespace NN0
             if (!Synapses.Any())
             {
                 _stepsToInput = int.MaxValue;
-                Console.WriteLine($"My layer is {StepsToInput}");
+                //Console.WriteLine($"My layer is {StepsToInput}");
                 return;
             }
 
             _stepsToInput = Synapses.Min(c => c.GetOtherNeuron(this).StepsToInput) + 1;
-            Console.WriteLine($"My layer is {StepsToInput}");
+            //Console.WriteLine($"My layer is {StepsToInput}");
         }
     }
-    // Not all possible functions are enumerated here
-    // but only those which can be created automatically
-    // without additional coefficients
 
     public class NeuroSignal : EventArgs
     {

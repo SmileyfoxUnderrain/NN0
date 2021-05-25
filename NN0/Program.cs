@@ -1,4 +1,4 @@
-﻿using NN0.Functions;
+﻿using NN0.ActivationFunctions;
 using NN0.LossFunctions;
 using System;
 using System.Linq;
@@ -12,9 +12,57 @@ namespace NN0
     {
         static void Main(string[] args)
         {
-            PointsOnThePlaneOverfitting();
+            BuildNnForCathegorizingProblems();
+            //PointsOnThePlaneOverfitting();
             //CelsiusToFarenheit();
             //SegmentDigits();
+        }
+        private static void BuildNnForCathegorizingProblems()
+        {
+            var factory = new NeuralNetworkFactory();
+            var nn = factory
+                .PrepareNetwork(0.1)
+                .SetInputLayer(7, true)
+                .AddLayer(ActivationFunctionType.Logistic, 7, true)
+                .AddLayer(ActivationFunctionType.Softmax, 10, false, true)
+                .GetPreparedNetwork();
+
+            var selection = new Selection();
+            selection.Samples.AddRange(new[] {
+                new Sample(new double[] { 1, 1, 0, 1, 1, 1, 1 },
+                    new double[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }), //0
+
+                new Sample(new double[] { 0, 0, 0, 1, 0, 0, 1 },
+                    new double[] { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 }), //1
+
+                new Sample(new double[] { 1, 0, 1, 1, 1, 1, 0 },
+                    new double[] { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 }), //2
+
+                new Sample(new double[] { 1, 0, 1, 1, 0, 1, 1 },
+                    new double[] { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 }), //3
+
+                new Sample(new double[] { 0, 1, 1, 1, 0, 0, 1 },
+                    new double[] { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 }), //4
+
+                new Sample(new double[] { 1, 1, 1, 0, 0, 1, 1 },
+                    new double[] { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 }), //5
+
+                new Sample(new double[] { 1, 1, 1, 0, 1, 1, 1 },
+                    new double[] { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 }), //6
+
+                new Sample(new double[] { 1, 0, 0, 1, 0, 0, 1 },
+                    new double[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 }), //7
+
+                new Sample(new double[] { 1, 1, 1, 1, 1, 1, 1 },
+                    new double[] { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 }), //8
+
+                new Sample(new double[] { 1, 1, 1, 1, 0, 1, 1 },
+                    new double[] { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 })  //9
+            });
+
+            nn.TrainWithSelection(selection, 400);
+            nn.CheckWithSelection(selection);
+
         }
         /// <summary>
         /// The probleb shows how overfitting occurs in NN with excess number of 

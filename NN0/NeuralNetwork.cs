@@ -1,4 +1,4 @@
-﻿using NN0.Functions;
+﻿using NN0.ActivationFunctions;
 using NN0.LossFunctions;
 using System;
 using System.Collections.Generic;
@@ -68,10 +68,12 @@ namespace NN0
                     $"Incorrect number of output values. Given is {outputs.Count()} but {OutputNeurons.Count()} expected");
 
             Calculate(inputs);
+            //Console.WriteLine($"Received:   {string.Join(", ", inputs.Select(i => i.ToString("F")))}");
+            //Console.WriteLine($"Calculated: {string.Join(", ", outputValues.Select(i => i.ToString("F")))}");
+            //Console.WriteLine($"Awaited:    {string.Join(", ", outputs.Select(i => i.ToString("F")))}");
 
             for (var i = 0; i < OutputNeurons.Count(); i++)
                 BackPropagate(OutputNeurons.ElementAt(i), outputs.ElementAt(i));
-
         }
         public void TrainWithSelection(Selection sel, int times)
         {
@@ -218,8 +220,16 @@ namespace NN0
         {
             var outputValue = neuron.OutputValue;
             var error = outputValue - expectedValue; //e = y - d
+            double localGradient;
 
-            var localGradient = error * neuron.ActivationFunction.Derivative(outputValue);
+            if (neuron.ActivationFunction is SoftmaxFunction neuronSoftMax)
+                localGradient = neuronSoftMax.SoftmaxDerivative(outputValue, expectedValue);
+            else if (neuron.ActivationFunction is ILayerIndependentFunction neuronFunction)
+                localGradient = error * neuronFunction.Derivative(outputValue);
+            else
+                throw new NotImplementedException(
+                    $"Back propagation for the {neuron.ActivationFunction.GetType().Name} type not implemented yet");
+            
             //Console.WriteLine($"LastLayer error = {error}, local gradient = {localGradient}");
             var synapsesToModify = neuron.Dendrites.ToList();
             if (neuron.SynapseToBias != null)
@@ -227,6 +237,7 @@ namespace NN0
 
             foreach (var d in synapsesToModify)
             {
+                //Console.WriteLine($"Backpropagate for synapse {synapsesToModify.LastIndexOf(d)}");
                 var previousLayerNeuron = d.GetOtherNeuron(neuron);
                 var previousOutputValue = previousLayerNeuron.OutputValue;
                 var weight = d.Weight;
@@ -244,82 +255,5 @@ namespace NN0
             return loss;
         }
     }
-    public class NeuralNetworkFactory
-    {
-        public static readonly double DEFAULT_WEIGHT = 1;
-        public static NeuralNetwork CreateByFunctionTypeAndLayerSizes(ActivationFunctionType type,
-             IEnumerable<int> layerSizes, double lambda = 0.01)
-        {
-            var function = ActivationFunctionFactory.GetByType(type);
-            return CreateByFunctionAndLayerSizes(function, layerSizes, lambda);
-        }
-        public static NeuralNetwork CreateByFunctionAndLayerSizes(IActivationFunction activationFunction, 
-            IEnumerable<int> layerSizes, double lambda = 0.01) 
-        {
-            var network = new NeuralNetwork(lambda);
-            var networkNeurons = new List<Neuron>();
-            var layersCount = layerSizes.Count();
-            var previousLayer = new List<Neuron>();
-
-            for (int i = 0; i < layersCount; i++)
-            {
-                var layerSize = layerSizes.ElementAt(i);
-                if (layerSize < 1)
-                    continue;
-
-                // Creating neurons for the layer includind one extra neuron to be the bias
-                var neuronsOnLayer = Enumerable.Range(1, layerSize).Select(o => new Neuron(activationFunction))
-                    .ToList();
-                networkNeurons.AddRange(neuronsOnLayer);
-
-                // If it's the first layer
-                if (i == 0)
-                {
-                    neuronsOnLayer.ToList().ForEach(n => n.IsOnTheFirstLayer = true);
-                    network.InputNeurons = neuronsOnLayer.ToList();
-                    previousLayer = neuronsOnLayer;
-                    AddBias(networkNeurons, previousLayer, activationFunction);
-                }
-
-                // If it's not the first nor the last layer
-                else if (i < layersCount - 1)
-                {
-                    SubscribeOneLayerToAnother(neuronsOnLayer, previousLayer);
-                    previousLayer = neuronsOnLayer;
-                    AddBias(networkNeurons, previousLayer, activationFunction);
-                }
-                // The output layer
-                else
-                {
-                    SubscribeOneLayerToAnother(neuronsOnLayer, previousLayer);
-                    network.OutputNeurons = neuronsOnLayer;
-                }
-            }
-            network.Neurons = networkNeurons;
-            return network;
-        }
-        // Add a bias to the current layer
-        private static void AddBias(
-            IList<Neuron> networkNeurons, IList<Neuron> previousLayer, IActivationFunction function)
-        {
-            var biasOnLayer = new Neuron(function) { IsBias = true };
-            networkNeurons.Add(biasOnLayer);
-            previousLayer.Add(biasOnLayer);
-        }
-        // Subscribe every neuron on the current layer with everry neuron on the previous layer
-        // Assume that the weights are all equals the same value to be changed during training
-        private static void SubscribeOneLayerToAnother(IEnumerable<Neuron> currentLayer, IEnumerable<Neuron> previousLayer)
-        {
-            var rnd = new Random(DateTime.Now.Ticks.GetHashCode());
-            foreach (var currentNeuron in currentLayer)
-                foreach (var prevNeuron in previousLayer)
-                {
-                    var randomWeight = DEFAULT_WEIGHT * rnd.NextDouble();
-                    var connection = new Synapse(prevNeuron, currentNeuron, randomWeight);
-                    prevNeuron.Synapses.Add(connection);
-                    currentNeuron.Synapses.Add(connection);
-                    prevNeuron.Signal += currentNeuron.OnIncomingSignal;
-                }
-        }
-    }
+    
 }

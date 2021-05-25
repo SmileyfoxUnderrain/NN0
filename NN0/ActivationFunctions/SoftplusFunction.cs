@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace NN0.Functions
+namespace NN0.ActivationFunctions
 {
-    public class SoftplusFunction : IActivationFunction
+    public class SoftplusFunction : ILayerIndependentFunction
     {
         public double Function(double x)
         {
