@@ -195,11 +195,6 @@ namespace NN0
 
             if (ActivationFunction is not ILayerIndependentFunction)
                 return;
-            //if (_outputSynapsesGradients.Keys.ToList().Contains(connection))
-            //{
-            //    Console.WriteLine("Already have a connection");
-            //    return;
-            //}
 
             _outputSynapsesGradients.Add(connection, receiversGradient);
             var backPropagatedConnections = _outputSynapsesGradients.Keys;
