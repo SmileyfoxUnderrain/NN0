@@ -1,5 +1,7 @@
 ﻿using NN0.ActivationFunctions;
+using NN0.Helpers;
 using NN0.LossFunctions;
+using NN0.MNIST_digits;
 using System;
 using System.Diagnostics;
 using System.Linq;
@@ -13,10 +15,38 @@ namespace NN0
     {
         static void Main(string[] args)
         {
-            BuildNnForCathegorizingProblems();
+            TeahingToMnistDigits();
+            //BuildNnForCathegorizingProblems();
             //PointsOnThePlaneOverfitting();
             //CelsiusToFarenheit();
             //SegmentDigits();
+        }
+        private static void TeahingToMnistDigits()
+        {
+            var factory = new NeuralNetworkFactory();
+            var nn = factory.PrepareNetwork(0.1)
+                .SetInputLayer(784, true)
+                .AddLayer(ActivationFunctionType.ReLU, 50, true)
+                .AddLayer(ActivationFunctionType.Softmax, 10, false, true)
+                .GetPreparedNetwork();
+
+            var trainImages = ImageHelper.LoadData(
+                "C:\\temp\\train-images.idx3-ubyte",
+                "C:\\temp\\train-labels.idx1-ubyte");
+
+            Console.WriteLine("Train images are loaded");
+
+            var digitCathegorizer = new Cathegorizer<int>(Enumerable.Range(0, 10));
+            var trainingSelection = new Selection();
+            var trainingSamples = trainImages.Select(i =>
+                new Sample(i.pixels.SelectMany(x => x).Select(p => Convert.ToDouble(p) / 256)
+                , digitCathegorizer.CathegoryToVector(i.label)));
+
+            trainingSelection.Samples = trainingSamples.ToList();
+
+            nn.TrainWithSelection(trainingSelection, 2);
+
+
         }
         private static void BuildNnForCathegorizingProblems()
         {
