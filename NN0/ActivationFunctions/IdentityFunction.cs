@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace NN0.ActivationFunctions
 {
-    public class IdentityFunction : IActivationFunction
+    public class IdentityFunction : ILayerIndependentFunction
     {
         public double Function(double x)
         {
