@@ -1,6 +1,7 @@
 ﻿using NN0.ActivationFunctions;
 using NN0.LossFunctions;
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -60,9 +61,13 @@ namespace NN0
                     new double[] { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 })  //9
             });
 
-            nn.TrainWithSelection(selection, 400);
-            nn.CheckWithSelection(selection);
+            var sw = new Stopwatch();
+            sw.Start();
 
+            nn.TrainWithSelection(selection, 400);
+            Console.WriteLine($"Elapsed: {sw.ElapsedMilliseconds}ms");
+
+            nn.CheckWithSelection(selection);
         }
         /// <summary>
         /// The probleb shows how overfitting occurs in NN with excess number of 

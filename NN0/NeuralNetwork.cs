@@ -37,12 +37,14 @@ namespace NN0
 
             ResetSums();
 
-            for(var i = 0; i < InputNeurons.Count(); i++)
+            Parallel.For(0, InputNeurons.Count(), i =>
             {
                 var value = inputSignals.ElementAt(i);
                 var neuron = InputNeurons.ElementAt(i);
                 neuron.ReceiveSignal(value);
             }
+            );
+
         }
         public void ResetSums()
         {
@@ -235,7 +237,7 @@ namespace NN0
             if (neuron.SynapseToBias != null)
                 synapsesToModify.Add(neuron.SynapseToBias);
 
-            foreach (var d in synapsesToModify)
+            Parallel.ForEach(synapsesToModify, d => 
             {
                 //Console.WriteLine($"Backpropagate for synapse {synapsesToModify.LastIndexOf(d)}");
                 var previousLayerNeuron = d.GetOtherNeuron(neuron);
@@ -244,7 +246,8 @@ namespace NN0
                 d.Weight = weight - Lambda * localGradient * previousOutputValue;
 
                 previousLayerNeuron.BackPropagate(d, localGradient, Lambda);
-            };
+            });
+
         }
         private double CalculateLossForSample(Sample sample, ILossFunction lossFunction)
         {

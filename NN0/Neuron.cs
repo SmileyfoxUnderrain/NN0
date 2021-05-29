@@ -6,13 +6,22 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using NN0.ActivationFunctions;
+using System.Collections.Concurrent;
 
 namespace NN0
 {
     public class Neuron
     {
-        private Dictionary<Synapse, double> _dendritesInputValues = new Dictionary<Synapse, double>();
-        private Dictionary<Synapse, double> _outputSynapsesGradients = new Dictionary<Synapse, double>();
+        private readonly ConcurrentDictionary<Synapse, double> _dendritesInputsConcurrent =
+            new ConcurrentDictionary<Synapse, double>();
+
+        private readonly ConcurrentDictionary<Synapse, double> _axonsOutputsConcurrent =
+            new ConcurrentDictionary<Synapse, double>();
+
+        private readonly object _lockObject = new object();
+        private bool _sumLock;
+        private bool _backPropagationLock;
+
         private const double BIAS_OUTPUT = 1;
         private bool _isOnTheFirstLayer;
         private bool _isBias;
@@ -107,18 +116,26 @@ namespace NN0
             if (synapse == null)
                 return;
 
-            _dendritesInputValues.Add(synapse, signal.Value);
+            _dendritesInputsConcurrent.TryAdd(synapse, signal.Value);
 
             // If not all dendrites sent signal yet, do nothing
-            if (!Dendrites.All(d => _dendritesInputValues.Keys.Contains(d)))
+            if (!Dendrites.All(d => _dendritesInputsConcurrent.Keys.Contains(d)))
                 return;
 
-            // Else calculate sum and output value and send to the axons   
+            lock (_lockObject)
+            {
+                if (_sumLock)
+                    return;
+
+                _sumLock = true;
+            }
+
+            // Calculate sum and output value and send to the axons   
             // If current neuron has a synapse to the bias, the sum will not be 0 after reset
-            Sum += _dendritesInputValues.Sum(kvp => kvp.Key.Weight * kvp.Value);
+            Sum += _dendritesInputsConcurrent.Sum(kvp => kvp.Key.Weight * kvp.Value);
 
             // In the case when current neuron uses a layer-dependent function
-            if(ActivationFunction is SoftmaxFunction neuronSoftMax)
+            if (ActivationFunction is SoftmaxFunction neuronSoftMax)
             {
                 neuronSoftMax.ApplySum();
                 return;
@@ -134,10 +151,11 @@ namespace NN0
                     OutputValue = neuronFunction.Function(_sum);
                     IsCalculationComplete = true;
 
-                    SendSignal();
+                    SendSignalParallel();
                 }
+            
         }
-        public void SendSignal()
+        public void SendSignalEvent()
         {
             // If no next layer neurons subscribed for Signal event do not send a signal
             if (Signal == null)
@@ -145,6 +163,18 @@ namespace NN0
 
             var neuroSignal = new NeuroSignal(this, OutputValue);
             Signal(neuroSignal);
+        }
+        public void SendSignalParallel()
+        {
+            if (Axons == null || !Axons.Any())
+                return;
+
+            var neuroSignal = new NeuroSignal(this, OutputValue);
+            Parallel.ForEach(Axons, a =>
+            {
+                a.GetOtherNeuron(this).OnIncomingSignal(neuroSignal);
+            });
+
         }
         /// <summary>
         /// Receive signal to the input neuron and send it to others
@@ -165,6 +195,7 @@ namespace NN0
 
         public void Reset() 
         {
+            _sumLock = false;
             IsCalculationComplete = false;
            
             if (IsBias)
@@ -173,13 +204,13 @@ namespace NN0
                 OutputValue = 0;
 
             _sum = 0;
-            //Sum = 0;
+
             // Bias doesn't send the signal itself, so include it's influence to the sum manually
             if (SynapseToBias != null)
                 _sum += SynapseToBias.GetOtherNeuron(this).OutputValue * SynapseToBias.Weight;
 
-            _dendritesInputValues.Clear();
-            _outputSynapsesGradients.Clear();
+            _dendritesInputsConcurrent.Clear();
+            _axonsOutputsConcurrent.Clear();
         }
 
         public void BackPropagate(Synapse connection, double receiversGradient, double step)
@@ -196,15 +227,23 @@ namespace NN0
             if (ActivationFunction is not ILayerIndependentFunction)
                 return;
 
-            _outputSynapsesGradients.Add(connection, receiversGradient);
-            var backPropagatedConnections = _outputSynapsesGradients.Keys;
+            _axonsOutputsConcurrent.TryAdd(connection, receiversGradient);
+            var backPropagatedConnections = _axonsOutputsConcurrent.Keys;
             // if not all output connections are backPropagated yet, do nothing
             if (!Axons.All(oc => backPropagatedConnections.Contains(oc)))
                 return;
 
+            lock (_lockObject)
+            {
+                if (_backPropagationLock)
+                    return;
+
+                _backPropagationLock = true;
+            }
+
             // Otherwise continue back propagation
             // 1. Calculate weighted sum
-            var weightedSum = _outputSynapsesGradients.Sum(c => c.Value * c.Key.Weight);
+            var weightedSum = _axonsOutputsConcurrent.Sum(c => c.Value * c.Key.Weight);
             // 2. Calculate local gradient 
             // weightedSum(sigma * omega) * f * (1 - f)
             var activationFunction = ActivationFunction as ILayerIndependentFunction;
@@ -215,12 +254,13 @@ namespace NN0
             if (SynapseToBias != null)
                 synapsesToModify.Add(SynapseToBias);
 
-            synapsesToModify.ForEach(c =>
+            Parallel.ForEach(synapsesToModify, c => 
             {
                 var previousLayerNeuron = c.GetOtherNeuron(this);
                 c.Weight -= step * localGradient * previousLayerNeuron.OutputValue;
                 previousLayerNeuron.BackPropagate(c, localGradient, step);
             });
+            _backPropagationLock = false;
 
         }
         // Recalculate the weight for the way to input for the convergence
