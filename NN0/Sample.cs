@@ -51,13 +51,16 @@ namespace NN0
             var exceptedSamples = Samples.Except(_givenSamples);
             var randomSample = exceptedSamples.ElementAt(_rnd.Next(0, exceptedSamples.Count()));
             _givenSamples.Add(randomSample);
-            double avgSecondsLeft = 0;
-            if (_msPerStep.Any()) 
+            if (_samples.Count > 100)
             {
-                var averageTimePerStep = _msPerStep.Sum() / _msPerStep.Count;
-                avgSecondsLeft = (_samples.Count() - _givenSamples.Count()) * averageTimePerStep / 1000;
+                double avgSecondsLeft = 0;
+                if (_msPerStep.Any())
+                {
+                    var averageTimePerStep = _msPerStep.Sum() / _msPerStep.Count;
+                    avgSecondsLeft = (_samples.Count() - _givenSamples.Count()) * averageTimePerStep / 1000;
+                }
+                Console.WriteLine($"Samples left: {_samples.Count() - _givenSamples.Count()}, average time left: {avgSecondsLeft}s");
             }
-            Console.WriteLine($"Samples left: {_samples.Count() - _givenSamples.Count()}, average time left: {avgSecondsLeft}s");
             return randomSample;
         }
     }

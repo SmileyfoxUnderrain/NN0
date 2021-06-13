@@ -15,12 +15,13 @@ namespace NN0
     {
         static void Main(string[] args)
         {
-            TeahingToMnistDigits();
+            //TeahingToMnistDigits();
             //BuildNnForCathegorizingProblems();
             //PointsOnThePlaneOverfitting();
-            //CelsiusToFarenheit();
+            CelsiusToFarenheit();
             //SegmentDigits();
         }
+        
         private static void TeahingToMnistDigits()
         {
             var factory = new NeuralNetworkFactory();
@@ -40,13 +41,11 @@ namespace NN0
             var trainingSelection = new Selection();
             var trainingSamples = trainImages.Select(i =>
                 new Sample(i.pixels.SelectMany(x => x).Select(p => Convert.ToDouble(p) / 256)
-                , digitCathegorizer.CathegoryToVector(i.label)));
+                    , digitCathegorizer.CathegoryToVector(i.label)));
 
             trainingSelection.Samples = trainingSamples.ToList();
 
-            nn.TrainWithSelection(trainingSelection, 2);
-
-
+            nn.TrainWithSelection(trainingSelection, 1);
         }
         private static void BuildNnForCathegorizingProblems()
         {
@@ -177,11 +176,15 @@ namespace NN0
                 new Sample(new double[] {22}, new double[] {72}),
                 new Sample(new double[] {38}, new double[] {100}),
             });
+            var sw = new Stopwatch();
+            sw.Start();
             nn.TrainWithSelection(teachingSelection, 1000);
+            sw.Stop();
             nn.CheckWithSelection(teachingSelection);
             nn.CheckWithInputVector(new double[] { 100 }); // Should be 212
             var weights = nn.OutputNeurons.First().Synapses.Select(s => s.Weight);
             Console.WriteLine($"Weights are: {string.Join(", ", weights)}");
+            Console.WriteLine($"Elapsed time: {sw.ElapsedMilliseconds}");
         }
 
         /// <summary>

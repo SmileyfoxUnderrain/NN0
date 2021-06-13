@@ -11,7 +11,6 @@ namespace NN0.ActivationFunctions
 {
     public class SoftmaxFunction : IActivationFunction
     {
-        //private static List<Neuron> _neuronsWithASum = new List<Neuron>();
         private static readonly ConcurrentBag<Neuron> _neuronsWithSumsConcurrent = 
             new ConcurrentBag<Neuron>();
 
@@ -53,7 +52,6 @@ namespace NN0.ActivationFunctions
 
                 neuron.OutputValue = output;
                 neuron.IsCalculationComplete = true;
-                //neuron.SendSignalEvent();
             }
             _neuronsWithSumsConcurrent.Clear();
             _outputLock = false;

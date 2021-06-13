@@ -18,13 +18,14 @@ namespace NN0
         public Neuron NeuronA {get; set;}
         public Neuron NeuronB {get; set;}
         public double Weight { get; set; }
+        public bool IsSummarized { get; set; }
         public Neuron GetOtherNeuron(Neuron currentNeuron)
         {
             if (NeuronA == currentNeuron)
                 return NeuronB;
             if (NeuronB == currentNeuron)
                 return NeuronA;
-            throw new ArgumentException("The connection does not belongs to the given neuron");
+            throw new ArgumentException("The synapse does not belongs to the given neuron");
         }
     }
 }

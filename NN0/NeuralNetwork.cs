@@ -29,7 +29,7 @@ namespace NN0
                 return OutputNeurons.Select(n => n.OutputValue);
             }
         }
-        public void SendToInput(IEnumerable<double> inputSignals)
+        public IEnumerable<double> SendToInput(IEnumerable<double> inputSignals)
         {
             if (inputSignals.Count() != InputNeurons.Count())
                 throw new ArgumentException(
@@ -37,15 +37,18 @@ namespace NN0
 
             ResetSums();
 
+            IEnumerable<double> ret = null;
             Parallel.For(0, InputNeurons.Count(), i =>
             {
                 var value = inputSignals.ElementAt(i);
                 var neuron = InputNeurons.ElementAt(i);
-                neuron.ReceiveSignal(value);
-            }
-            );
-
+                var outputs = neuron.FrontPropagate(value);
+                if (outputs != null && outputs.Any())
+                    ret = outputs;
+            });
+            return ret;
         }
+
         public void ResetSums()
         {
             Neurons.ToList().ForEach(n => n.Reset());
@@ -54,29 +57,24 @@ namespace NN0
         public IEnumerable<double> Calculate(IEnumerable<double> inputs)
         {
             Neurons.ToList().ForEach(n => n.Reset());
-            Task.Run(() => SendToInput(inputs));
-            // await for calculation completes
-            while (!OutputNeurons.All(n => n.IsCalculationComplete))
-                Thread.Sleep(0);
-
-            return OutputValues;
+            var outputs = SendToInput(inputs);
+            return outputs;
         }
 
         public void Train(IEnumerable<double> inputs, IEnumerable<double> outputs)
         {
-            
             if (outputs.Count() != OutputNeurons.Count())
                 throw new ArgumentException(
                     $"Incorrect number of output values. Given is {outputs.Count()} but {OutputNeurons.Count()} expected");
-
+            
             Calculate(inputs);
-            //Console.WriteLine($"Received:   {string.Join(", ", inputs.Select(i => i.ToString("F")))}");
-            //Console.WriteLine($"Calculated: {string.Join(", ", outputValues.Select(i => i.ToString("F")))}");
-            //Console.WriteLine($"Awaited:    {string.Join(", ", outputs.Select(i => i.ToString("F")))}");
 
-            for (var i = 0; i < OutputNeurons.Count(); i++)
+            Parallel.For(0, OutputNeurons.Count(), i =>
+            {
                 BackPropagate(OutputNeurons.ElementAt(i), outputs.ElementAt(i));
+            });
         }
+
         public void TrainWithSelection(Selection sel, int times)
         {
             for (var i = 0; i < times; i++)
@@ -90,6 +88,7 @@ namespace NN0
                 sel.ResetRandomizer();
             }
         }
+        
         public void TrainWitLossFunctionAndDifferentSets(ILossFunction lossFunction, int maxTimes, Selection sel, Selection validationSet)
         {
             for (var i = 0; i < maxTimes; i++)
@@ -247,8 +246,8 @@ namespace NN0
 
                 previousLayerNeuron.BackPropagate(d, localGradient, Lambda);
             });
-
         }
+
         private double CalculateLossForSample(Sample sample, ILossFunction lossFunction)
         {
             var result = Calculate(sample.InputVector);

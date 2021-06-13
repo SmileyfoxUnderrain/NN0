@@ -97,6 +97,7 @@ namespace NN0
         }
         public NeuralNetwork GetPreparedNetwork()
         {
+            _nn.Neurons.ToList().ForEach(n => n.CurrentNeuralNetwork = _nn);
             if (_nn.InputNeurons != null && _nn.InputNeurons.Any() 
                 && _nn.OutputNeurons != null && _nn.OutputNeurons.Any())
                 return _nn;
@@ -147,6 +148,7 @@ namespace NN0
                 }
             }
             network.Neurons = networkNeurons;
+            network.Neurons.ToList().ForEach(n => n.CurrentNeuralNetwork = network);
             return network;
         }
         // Add a bias to the current layer
@@ -157,8 +159,7 @@ namespace NN0
             networkNeurons.Add(biasOnLayer);
             previousLayer.Add(biasOnLayer);
         }
-        // Subscribe every neuron on the current layer with everry neuron on the previous layer
-        // Assume that the weights are all equals the same value to be changed during training
+
         private static void SubscribeOneLayerToAnother(IEnumerable<Neuron> currentLayer, IEnumerable<Neuron> previousLayer)
         {
             var rnd = new Random(DateTime.Now.Ticks.GetHashCode());
@@ -169,7 +170,6 @@ namespace NN0
                     var connection = new Synapse(prevNeuron, currentNeuron, randomWeight);
                     prevNeuron.Synapses.Add(connection);
                     currentNeuron.Synapses.Add(connection);
-                    prevNeuron.Signal += currentNeuron.OnIncomingSignal;
                 }
         }
     }

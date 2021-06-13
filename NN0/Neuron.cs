@@ -12,6 +12,7 @@ namespace NN0
 {
     public class Neuron
     {
+        private readonly ConcurrentBag<double> _summarizationBag = new ConcurrentBag<double>();
         private readonly ConcurrentDictionary<Synapse, double> _dendritesInputsConcurrent =
             new ConcurrentDictionary<Synapse, double>();
 
@@ -32,7 +33,7 @@ namespace NN0
         public Neuron(IActivationFunction activationFunction, bool isBias = false, bool isOnTheFirstLayer = false)
         {
             IsOnTheFirstLayer = isOnTheFirstLayer;
-            if(!isOnTheFirstLayer)
+            if (!isOnTheFirstLayer)
                 ActivationFunction = activationFunction;
 
             IsBias = isBias;
@@ -42,8 +43,9 @@ namespace NN0
 
         public delegate void NeuroSignalEvent(NeuroSignal signal);
         public event NeuroSignalEvent Signal;
+        public NeuralNetwork CurrentNeuralNetwork { get; set; }
         public IActivationFunction ActivationFunction { get; set; }
-        public bool IsOnTheFirstLayer 
+        public bool IsOnTheFirstLayer
         {
             get { return _isOnTheFirstLayer; }
             set
@@ -64,7 +66,7 @@ namespace NN0
                     _stepsToInput = int.MaxValue;
             }
         }
-        public double Sum 
+        public double Sum
         {
             get { return _sum; }
             set { _sum = value; }
@@ -81,7 +83,7 @@ namespace NN0
                 if (IsOnTheFirstLayer || IsBias)
                     return new List<Synapse>();
 
-                return Synapses.Where(c => 
+                return Synapses.Where(c =>
                     // PreviousLayer neurons
                     c.GetOtherNeuron(this).StepsToInput == StepsToInput - 1
                     // And not bias
@@ -92,7 +94,7 @@ namespace NN0
         {
             get
             {
-                return Synapses.Where(c => 
+                return Synapses.Where(c =>
                     c.GetOtherNeuron(this).StepsToInput == StepsToInput + 1
                     && !c.GetOtherNeuron(this).IsBias);
             }
@@ -105,99 +107,12 @@ namespace NN0
             }
         }
         public bool IsCalculationComplete { get; set; }
-        public void OnIncomingSignal(NeuroSignal signal)
-        {
-            //Console.WriteLine($"Layer {StepsToInput}. Got signal {signal.Value}");
-            if (signal == null)
-                return;
 
-            // Do not handle the signals from the current layer or higher layers
-            var synapse = Dendrites.Where(c => c.GetOtherNeuron(this) == signal.Sender).FirstOrDefault();
-            if (synapse == null)
-                return;
-
-            _dendritesInputsConcurrent.TryAdd(synapse, signal.Value);
-
-            // If not all dendrites sent signal yet, do nothing
-            if (!Dendrites.All(d => _dendritesInputsConcurrent.Keys.Contains(d)))
-                return;
-
-            lock (_lockObject)
-            {
-                if (_sumLock)
-                    return;
-
-                _sumLock = true;
-            }
-
-            // Calculate sum and output value and send to the axons   
-            // If current neuron has a synapse to the bias, the sum will not be 0 after reset
-            Sum += _dendritesInputsConcurrent.Sum(kvp => kvp.Key.Weight * kvp.Value);
-
-            // In the case when current neuron uses a layer-dependent function
-            if (ActivationFunction is SoftmaxFunction neuronSoftMax)
-            {
-                neuronSoftMax.ApplySum();
-                return;
-                // It's supposed than the activation function will set the output value
-                // to the current neuron when all neurons on the current layer will send their sums
-                // It's also supposed that the layer-dependent activation functions can be used
-                // on the output layer only, so the neuron don't need to send a signal
-            }
-            // in the case it's layer-independent activation funtion
-            if (ActivationFunction is ILayerIndependentFunction neuronFunction)
-                if (!IsOnTheFirstLayer && !IsBias)
-                {
-                    OutputValue = neuronFunction.Function(_sum);
-                    IsCalculationComplete = true;
-
-                    SendSignalParallel();
-                }
-            
-        }
-        public void SendSignalEvent()
-        {
-            // If no next layer neurons subscribed for Signal event do not send a signal
-            if (Signal == null)
-                return;
-
-            var neuroSignal = new NeuroSignal(this, OutputValue);
-            Signal(neuroSignal);
-        }
-        public void SendSignalParallel()
-        {
-            if (Axons == null || !Axons.Any())
-                return;
-
-            var neuroSignal = new NeuroSignal(this, OutputValue);
-            Parallel.ForEach(Axons, a =>
-            {
-                a.GetOtherNeuron(this).OnIncomingSignal(neuroSignal);
-            });
-
-        }
-        /// <summary>
-        /// Receive signal to the input neuron and send it to others
-        /// Input neuron does not handles the signal with activation function
-        /// </summary>
-        /// <param name="value">Input signal value</param>
-        public void ReceiveSignal(double value)
-        {
-            if (!IsOnTheFirstLayer)
-                return;
-
-            if (IsBias)
-                return;
-
-            OutputValue = value;
-            Signal(new NeuroSignal(this, OutputValue));
-        }
-
-        public void Reset() 
+        public void Reset()
         {
             _sumLock = false;
             IsCalculationComplete = false;
-           
+
             if (IsBias)
                 OutputValue = BIAS_OUTPUT;
             else
@@ -254,14 +169,13 @@ namespace NN0
             if (SynapseToBias != null)
                 synapsesToModify.Add(SynapseToBias);
 
-            Parallel.ForEach(synapsesToModify, c => 
+            Parallel.ForEach(synapsesToModify, c =>
             {
                 var previousLayerNeuron = c.GetOtherNeuron(this);
                 c.Weight -= step * localGradient * previousLayerNeuron.OutputValue;
                 previousLayerNeuron.BackPropagate(c, localGradient, step);
             });
             _backPropagationLock = false;
-
         }
         // Recalculate the weight for the way to input for the convergence
         private void Connections_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
@@ -278,9 +192,74 @@ namespace NN0
                 //Console.WriteLine($"My layer is {StepsToInput}");
                 return;
             }
-
             _stepsToInput = Synapses.Min(c => c.GetOtherNeuron(this).StepsToInput) + 1;
             //Console.WriteLine($"My layer is {StepsToInput}");
+        }
+        public IEnumerable<double> FrontPropagate(double inputValue)
+        {
+            if (!IsOnTheFirstLayer || IsBias)
+                throw new InvalidOperationException("This is not an input neuron!");
+
+            OutputValue = inputValue;
+            var signal = new NeuroSignal(this, inputValue);
+            IEnumerable<double> ret = null;
+
+            Parallel.ForEach(Axons, a =>
+            {
+                var outputs = a.GetOtherNeuron(this).FrontPropagate(a, signal);
+                if (outputs != null && outputs.Any())
+                    ret = outputs;
+            });
+            return ret;
+        }
+        public IEnumerable<double> FrontPropagate(Synapse synapse, NeuroSignal signal)
+        {
+            synapse.IsSummarized = true;
+            _summarizationBag.Add(signal.Value * synapse.Weight);
+            if (!Dendrites.All(d => d.IsSummarized))
+                return null;
+
+            lock (_lockObject)
+            {
+                if (_sumLock)
+                    return null;
+
+                _sumLock = true;
+            }
+
+            Sum += _summarizationBag.Sum();
+            _summarizationBag.Clear();
+            Dendrites.ToList().ForEach(d => d.IsSummarized = false);
+
+            if (ActivationFunction is SoftmaxFunction softMax)
+            {
+                softMax.ApplySum();
+            }
+            else if (ActivationFunction is ILayerIndependentFunction activationFunction)
+            {
+                OutputValue = activationFunction.Function(Sum);
+                IsCalculationComplete = true;
+            }
+
+            if (Axons != null && Axons.Any())
+            {
+                var neuroSignal = new NeuroSignal(this, OutputValue);
+                IEnumerable<double> ret = null;
+                Parallel.ForEach(Axons, a =>
+                {
+                    var nextNeuron = a.GetOtherNeuron(this);
+                    var outputs = nextNeuron.FrontPropagate(a, neuroSignal);
+                    if (outputs != null && outputs.Any())
+                        ret = outputs;
+                });
+                return ret;
+            }
+            else if (CurrentNeuralNetwork.OutputNeurons.Contains(this)
+                && CurrentNeuralNetwork.OutputNeurons.All(n => n.IsCalculationComplete))
+            {
+                return CurrentNeuralNetwork.OutputNeurons.Select(n => n.OutputValue);
+            }
+            return null;
         }
     }
 
