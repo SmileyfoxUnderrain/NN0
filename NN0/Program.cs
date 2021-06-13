@@ -16,9 +16,9 @@ namespace NN0
         static void Main(string[] args)
         {
             //TeahingToMnistDigits();
-            //BuildNnForCathegorizingProblems();
+            BuildNnForCategorizingProblems();
             //PointsOnThePlaneOverfitting();
-            CelsiusToFarenheit();
+            //CelsiusToFarenheit();
             //SegmentDigits();
         }
         
@@ -37,17 +37,17 @@ namespace NN0
 
             Console.WriteLine("Train images are loaded");
 
-            var digitCathegorizer = new Cathegorizer<int>(Enumerable.Range(0, 10));
+            var digitCategorizer = new Categorizer<int>(Enumerable.Range(0, 10));
             var trainingSelection = new Selection();
             var trainingSamples = trainImages.Select(i =>
                 new Sample(i.pixels.SelectMany(x => x).Select(p => Convert.ToDouble(p) / 256)
-                    , digitCathegorizer.CathegoryToVector(i.label)));
+                    , digitCategorizer.CategoryToVector(i.label)));
 
             trainingSelection.Samples = trainingSamples.ToList();
 
             nn.TrainWithSelection(trainingSelection, 1);
         }
-        private static void BuildNnForCathegorizingProblems()
+        private static void BuildNnForCategorizingProblems()
         {
             var factory = new NeuralNetworkFactory();
             var nn = factory
@@ -57,37 +57,38 @@ namespace NN0
                 .AddLayer(ActivationFunctionType.Softmax, 10, false, true)
                 .GetPreparedNetwork();
 
+            var digitCategorizer = new Categorizer<int>(Enumerable.Range(0, 10));
             var selection = new Selection();
             selection.Samples.AddRange(new[] {
                 new Sample(new double[] { 1, 1, 0, 1, 1, 1, 1 },
-                    new double[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }), //0
+                    digitCategorizer.CategoryToVector(0)), //0
 
                 new Sample(new double[] { 0, 0, 0, 1, 0, 0, 1 },
-                    new double[] { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 }), //1
+                    digitCategorizer.CategoryToVector(1)), //1
 
                 new Sample(new double[] { 1, 0, 1, 1, 1, 1, 0 },
-                    new double[] { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 }), //2
+                    digitCategorizer.CategoryToVector(2)), //2
 
                 new Sample(new double[] { 1, 0, 1, 1, 0, 1, 1 },
-                    new double[] { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 }), //3
+                    digitCategorizer.CategoryToVector(3)), //3
 
                 new Sample(new double[] { 0, 1, 1, 1, 0, 0, 1 },
-                    new double[] { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 }), //4
+                    digitCategorizer.CategoryToVector(4)), //4
 
                 new Sample(new double[] { 1, 1, 1, 0, 0, 1, 1 },
-                    new double[] { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 }), //5
+                    digitCategorizer.CategoryToVector(5)), //5
 
                 new Sample(new double[] { 1, 1, 1, 0, 1, 1, 1 },
-                    new double[] { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 }), //6
+                    digitCategorizer.CategoryToVector(6)), //6
 
                 new Sample(new double[] { 1, 0, 0, 1, 0, 0, 1 },
-                    new double[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 }), //7
+                    digitCategorizer.CategoryToVector(7)), //7
 
                 new Sample(new double[] { 1, 1, 1, 1, 1, 1, 1 },
-                    new double[] { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 }), //8
+                    digitCategorizer.CategoryToVector(8)), //8
 
                 new Sample(new double[] { 1, 1, 1, 1, 0, 1, 1 },
-                    new double[] { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 })  //9
+                    digitCategorizer.CategoryToVector(9))  //9
             });
 
             var sw = new Stopwatch();
@@ -96,7 +97,19 @@ namespace NN0
             nn.TrainWithSelection(selection, 400);
             Console.WriteLine($"Elapsed: {sw.ElapsedMilliseconds}ms");
 
-            nn.CheckWithSelection(selection);
+            //nn.CheckWithSelection(selection);
+            Console.WriteLine("Checking training result:");
+            foreach(var sample in selection.Samples)
+            {
+                var output = nn.Calculate(sample.InputVector);
+                var inputString = DoublesSeqHelper.DoublesToString(sample.InputVector);
+                var resultString = DoublesSeqHelper.DoublesToString(output);
+                var expectedDigit = digitCategorizer.VectorToCategory(sample.ExpectedResponse);
+                var receivedDigit = digitCategorizer.VectorToCategory(output);
+                Console.WriteLine($"Expected: {expectedDigit} ({inputString})");
+                Console.WriteLine($"Received: {receivedDigit} ({resultString})");
+                Console.WriteLine();
+            }
         }
         /// <summary>
         /// The probleb shows how overfitting occurs in NN with excess number of 

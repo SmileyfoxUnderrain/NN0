@@ -1,4 +1,5 @@
 ﻿using NN0.ActivationFunctions;
+using NN0.Helpers;
 using NN0.LossFunctions;
 using System;
 using System.Collections.Generic;
@@ -186,25 +187,19 @@ namespace NN0
             foreach (var sample in selection.Samples)
             {
                 var result = Calculate(sample.InputVector);
-                DisplayResult(result);
+                DoublesSeqHelper.DisplayResult(result);
             }
         }
         public void CheckWithInputVector(IEnumerable<double> inputVector)
         {
             var res = Calculate(inputVector);
-            DisplayResult(res);
+            DoublesSeqHelper.DisplayResult(res);
 
         }
         public void CheckWithMultipleVectors(IEnumerable<IEnumerable<double>> inputVectors)
         {
             foreach (var inputVector in inputVectors)
                 CheckWithInputVector(inputVector);
-        }
-        private void DisplayResult(IEnumerable<double> result)
-        {
-            var shortResult = result.Select(r => Math.Round(r, 3));
-            Console.WriteLine($"result: {string.Join(", ", shortResult)}");
-            Console.WriteLine();
         }
         public void SetOutputActivationFunctionType(ActivationFunctionType type)
         {

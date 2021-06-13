@@ -37,7 +37,7 @@ namespace NN0.LossFunctions
         /// </summary>
         BinaryCrossentropy,
         /// <summary>
-        /// Cathegotical crossEntropy. For recognition by multiple cathegories.
+        /// Categotical crossEntropy. For recognition by multiple categories.
         /// </summary>
         CathegoicalCrossEntropy,
         /// <summary>
