@@ -15,8 +15,8 @@ namespace NN0
     {
         static void Main(string[] args)
         {
-            //TeahingToMnistDigits();
-            BuildNnForCategorizingProblems();
+            TeahingToMnistDigits();
+            //BuildNnForCategorizingProblems();
             //PointsOnThePlaneOverfitting();
             //CelsiusToFarenheit();
             //SegmentDigits();
@@ -25,9 +25,9 @@ namespace NN0
         private static void TeahingToMnistDigits()
         {
             var factory = new NeuralNetworkFactory();
-            var nn = factory.PrepareNetwork(0.1)
+            var nn = factory.PrepareNetwork(0.001) // 0.01 for ReLU, 0.001 for Logistic
                 .SetInputLayer(784, true)
-                .AddLayer(ActivationFunctionType.ReLU, 50, true)
+                .AddLayer(ActivationFunctionType.Logistic, 50, true)
                 .AddLayer(ActivationFunctionType.Softmax, 10, false, true)
                 .GetPreparedNetwork();
 
@@ -35,17 +35,43 @@ namespace NN0
                 "C:\\temp\\train-images.idx3-ubyte",
                 "C:\\temp\\train-labels.idx1-ubyte");
 
+            var trainImagesShorten = trainImages.Take(5000);///(trainImages.Length / 3);
+
             Console.WriteLine("Train images are loaded");
 
             var digitCategorizer = new Categorizer<int>(Enumerable.Range(0, 10));
             var trainingSelection = new Selection();
-            var trainingSamples = trainImages.Select(i =>
-                new Sample(i.pixels.SelectMany(x => x).Select(p => Convert.ToDouble(p) / 256)
+            var trainingSamples = trainImagesShorten.Select(i =>
+                new Sample(i.pixels.SelectMany(x => x).Select(p => Convert.ToDouble(p) / (256 * 100) )  // 256 * 100 for ReLU, 256 * 25 for Logistic
                     , digitCategorizer.CategoryToVector(i.label)));
+            var checkingSamples = trainingSamples.Take(20);
 
             trainingSelection.Samples = trainingSamples.ToList();
 
-            nn.TrainWithSelection(trainingSelection, 1);
+            Console.WriteLine("Checking untrained NN:");
+            foreach (var sample in checkingSamples)
+            {
+                var output = nn.Calculate(sample.InputVector);
+                var resultString = DoublesSeqHelper.DoublesToString(output);
+                var expectedDigit = digitCategorizer.VectorToCategory(sample.ExpectedResponse);
+                var receivedDigit = digitCategorizer.VectorToCategory(output);
+                Console.Write($"Expected: {expectedDigit} ");
+                Console.WriteLine($"Received: {receivedDigit} ({resultString})");
+            }
+
+            nn.TrainWithSelection(trainingSelection);
+
+            Console.WriteLine("Checking training result:");
+            foreach (var sample in checkingSamples)
+            {
+                var output = nn.Calculate(sample.InputVector);
+                var resultString = DoublesSeqHelper.DoublesToString(output);
+                var expectedDigit = digitCategorizer.VectorToCategory(sample.ExpectedResponse);
+                var receivedDigit = digitCategorizer.VectorToCategory(output);
+                Console.Write($"Expected: {expectedDigit} ");
+                Console.WriteLine($"Received: {receivedDigit} ({resultString})");
+            }
+
         }
         private static void BuildNnForCategorizingProblems()
         {

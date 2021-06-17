@@ -76,7 +76,7 @@ namespace NN0
             });
         }
 
-        public void TrainWithSelection(Selection sel, int times)
+        public void TrainWithSelection(Selection sel, int times = 1)
         {
             for (var i = 0; i < times; i++)
             {
@@ -226,7 +226,7 @@ namespace NN0
                 throw new NotImplementedException(
                     $"Back propagation for the {neuron.ActivationFunction.GetType().Name} type not implemented yet");
             
-            //Console.WriteLine($"LastLayer error = {error}, local gradient = {localGradient}");
+            // Console.WriteLine($"LastLayer error = {error}, local gradient = {localGradient}");
             var synapsesToModify = neuron.Dendrites.ToList();
             if (neuron.SynapseToBias != null)
                 synapsesToModify.Add(neuron.SynapseToBias);

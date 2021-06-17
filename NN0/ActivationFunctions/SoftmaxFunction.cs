@@ -44,11 +44,11 @@ namespace NN0.ActivationFunctions
             // Else, when all neurons asked an output and has a sum
             // calculate an output value for each neuron
             var e = Math.E;
-
+            var sumOfExpsPowered = _neuronsWithSumsConcurrent.Sum(n => Math.Pow(e, n.Sum));
             foreach (var neuron in _neuronsWithSumsConcurrent)
             {
                 var localSum = neuron.Sum;
-                var output = Math.Pow(e, localSum) / _neuronsWithSumsConcurrent.Sum(n => Math.Pow(e, n.Sum));
+                var output = Math.Pow(e, localSum) / sumOfExpsPowered;
 
                 neuron.OutputValue = output;
                 neuron.IsCalculationComplete = true;
